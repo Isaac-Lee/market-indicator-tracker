@@ -1,0 +1,45 @@
+{
+  "_note": "종목/지수 코드 모음. 실계좌 프로브(2026-08-04)로 확인된 값.",
+
+  "domestic_index": {
+    "kospi": "0001",
+    "kosdaq": "1001"
+  },
+
+  "domestic_stock": {
+    "samsung_elec": "005930",
+    "sk_hynix": "000660"
+  },
+
+  "overseas": {
+    "usdkrw": {"market": "X", "code": "FX@KRW", "_name": "원/달러(KMB) - 확인됨"},
+    "usdjpy": {"market": "X", "code": "FX@JPY", "_name": "엔/달러 - 확인됨"},
+
+    "_ust10y_사용법": "KIS 해외지수 시세를 신청한 뒤 아래 줄의 이름을 'ust10y'로 바꾸면 KIS를 먼저 시도하고, 빈 응답이면 FRED로 자동 대체된다. 현재 계좌에서는 전 코드가 빈 응답이라 기본 비활성.",
+    "_ust10y": {"market": "I", "code": ".TNX", "alternates": [".TNX", "TNX", "^TNX", "BY0202"]}
+  },
+
+  "futures": {
+    "wti": {
+      "exch_cd": "CME",
+      "root": "CL",
+      "srs_cd": null,
+      "_note": "srs_cd null 이면 근월물 자동 계산(CL+월코드+연도2자리). NYMEX 시세 신청 계좌만 조회 가능(EGW00551)."
+    }
+  },
+
+  "bond": {
+    "ktb3y": {
+      "source": "ECOS",
+      "ecos_stat": "817Y002",
+      "ecos_item": "010200000",
+      "_note": "한국은행 ECOS 시장금리(일별) > 국고채(3년), 단위 연%. KIS 채권 API는 가격만 주고 금리를 주지 않아 사용 불가."
+    }
+  },
+
+  "investor_market": {
+    "market": "KSP",
+    "iscd": "0001",
+    "_note": "시장별 투자자매매동향(일별). 1회 호출당 과거 300영업일 반환. KSP:코스피, KSQ:코스닥"
+  }
+}

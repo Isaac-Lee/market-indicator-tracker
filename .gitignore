@@ -1,0 +1,7 @@
+API-KEY.txt
+data/
+market_data.xlsx
+update.log
+__pycache__/
+google-service-account.json
+API-KEY.txt
