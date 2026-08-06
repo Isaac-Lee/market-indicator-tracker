@@ -2,7 +2,7 @@
 
 어둠의 알상무단을 위한 지표추적자 (Market Indicator Tracker)
 
-한국투자증권 Open API로 시장 지표를 로컬에 수집하고, 구글 시트에 올릴 엑셀 파일을 만드는 도구.
+토스증권 / 한국투자증권 Open API로 시장 지표를 로컬에 수집하고, 구글 시트에 올릴 엑셀 파일을 만드는 도구.
 
 ## 1. 설치 / 인증
 
@@ -10,12 +10,14 @@
 pip install -r requirements.txt
 ```
 
-키는 환경변수가 우선이고, 없으면 저장소 안의 `KIS-API-KEY.txt`를 읽는다(`.gitignore` 등록됨).
+키는 환경변수가 우선이고, 없으면 저장소 안의 `API-KEY.txt`를 읽는다(`.gitignore` 등록됨).
 
 ```
-APP Key: ...
+APP Key: ...           # 한국투자증권
 APP Secret: ...
-ECOS Key: ...      # 한국은행 ECOS 인증키 (국고채 3년용)
+ECOS Key: ...          # 한국은행 ECOS 인증키 (국고채 3년 대체 경로)
+Toss Client ID: ...    # 토스증권 (WTS > 설정 > Open API)
+Toss Client Secret: ...
 ```
 
 환경변수로 넘길 경우:
@@ -23,12 +25,24 @@ ECOS Key: ...      # 한국은행 ECOS 인증키 (국고채 3년용)
 ```bash
 export KIS_APP_KEY=... KIS_APP_SECRET=... ECOS_API_KEY=...
 export KIS_ENV=prod   # 모의투자면 vps
+export TOSS_CLIENT_ID=... TOSS_CLIENT_SECRET=...
 ```
 
-접근토큰은 `~/.kis_token.json`에 캐시되며(권한 600) 만료 10분 전까지 재사용한다. KIS는 토큰 발급을
-1분에 1회로 제한하므로 캐시를 지우지 말 것.
+접근토큰은 `~/.kis_token.json` / `~/.toss_token.json`에 캐시되며(권한 600) 만료 10분 전까지 재사용한다.
+KIS는 토큰 발급을 1분에 1회로 제한하고, 토스는 client당 유효 토큰이 1개(재발급 시 이전 토큰 즉시 무효)이므로
+캐시를 지우지 말 것.
+
+토스는 **허용 IP 등록이 필수**다. WTS > 설정 > Open API > 허용 IP 관리에 호출 IP를 넣지 않으면 403이 난다.
 
 ## 2. 실행
+
+이 맥에는 `/usr/local/bin/python3`(3.14, 패키지 없음)가 PATH 앞에 있다. 의존성이 깔린 쪽은
+`/usr/bin/python3` 이므로 **`/usr/bin/python3` 로 실행**할 것 (`ModuleNotFoundError: pandas` 나면 이 문제).
+
+```bash
+/usr/bin/python3 collect.py --daily        # 오늘치 추가 (매일)
+/usr/bin/python3 upload_sheets.py --data   # 구글 시트 반영
+```
 
 ```bash
 python collect.py --init      # 과거치 전체 수집 + market_data.xlsx 생성 (최초 1회)
@@ -40,6 +54,33 @@ python test_collect.py        # 네트워크 없이 로직 검증
 
 수집 결과는 `data/<지표>.csv`에 날짜 기준으로 누적된다(같은 날짜는 최신값으로 덮어씀).
 종목·지수 코드는 전부 `codes/instruments.json`에 있다. 코드가 바뀌면 그 파일만 고치면 된다.
+
+## 2.5. 데이터 소스 (토스증권 / 한국투자증권)
+
+`--source` 로 고른다. 기본은 `auto`.
+
+```bash
+python collect.py --daily --source auto   # 토스 지원 지표는 토스, 실패하면 KIS로 자동 대체 (기본)
+python collect.py --daily --source toss   # 토스만 (미지원 지표는 기존 KIS/FRED/야후 경로 그대로)
+python collect.py --daily --source kis    # 기존 KIS 경로만
+```
+
+| 지표 | 토스 엔드포인트 | 비고 |
+|---|---|---|
+| `kospi` / `kosdaq` | `/api/v1/market-indicators/{KOSPI\|KOSDAQ}/candles` | KIS 값과 **완전 일치**(거래량은 주 단위로 와서 1000으로 나눠 천주로 맞춤) |
+| `ktb3y` | `/api/v1/market-indicators/KR_BOND_3Y/candles` | 종가 = 수익률 연%. ECOS 값과 일치 → **ECOS 키 없이도 수집된다** |
+| `samsung_elec` / `sk_hynix` | `/api/v1/candles` (`adjusted=true`) | ⚠ KIS와 값이 다르다(아래) |
+| `investor_flow` | `/api/v1/market-indicators/{KOSPI}/investor-trading` | ⚠ KIS와 값이 다르다(아래). 원 단위 매수-매도 → 백만원으로 환산 |
+| `wti`, `usdkrw`, `usdjpy`, `ust10y_weekly` | 없음 | 토스는 환율 **현재가**만 주고 시계열이 없다. 기존 경로 유지 |
+
+⚠ **개별 종목·수급은 두 소스를 섞지 말 것.** 2026-08-03 삼성전자 종가가 KIS 239,500 / 토스 233,500,
+거래량 27.8M / 53.0M로 다르다(토스는 KRX+NXT 통합 기준으로 보인다). 투자자 매매대금도 마찬가지로
+외국인 순매수가 KIS -2,822,021 / 토스 -3,851,193 백만원이다. 토스로 갈아탄다면
+`data/samsung_elec.csv`, `data/sk_hynix.csv`, `data/investor_flow.csv` 를 지우고 `--init` 으로 다시 받아
+계열을 한 소스로 통일해야 한다. `kospi`/`kosdaq`/`ktb3y`는 값이 같아 그냥 이어 붙여도 된다.
+
+Rate limit은 클라이언트×API그룹 단위 TPS(차트 5회/초)라 `toss_client.py`가 0.21초 간격 + 429 시
+`Retry-After` 백오프로 처리한다.
 
 ## 3. 수집 지표 / 사용 API
 

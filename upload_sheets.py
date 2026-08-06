@@ -18,7 +18,7 @@ import pandas as pd
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
-from collect import SPEC, output_frames
+from collect import DATA, SPEC, output_frames
 
 SPREADSHEET_ID = "1WH8AhW_fjKzmw4S6H90CJI-fYPLaba4DtsAr_lmN3t8"
 CRED_FILE = Path(__file__).parent / "google-service-account.json"
@@ -41,6 +41,8 @@ TITLES = {
     "usdkrw": "원달러 환율",
     "usdjpy": "달러엔 환율",
     "wti": "WTI 원유 선물",
+    "ktb3y": "국고채 3년 금리",
+    "ust10y_weekly": "미국채 10년 금리",
     ("ktb3y", ("close",)): "국고채 3년 금리",
     ("ust10y_weekly", ("close",)): "미국채 10년 금리",
     ("investor_flow", ("foreign_cum", "foreign_cum_ma4w")): "외국인 누적 순매수 + 4주 MA",
@@ -48,6 +50,7 @@ TITLES = {
         "주체별 누적 순매수",
 }
 DASHBOARD = "dashboard"
+BRIEFING = "briefing"
 CHART_W, CHART_H = 760, 570  # 4:3, 캔들이 보이도록 크게
 GRID_ROWS, GRID_COLS = 28, 8  # 차트 하나가 차지하는 셀 수(anchor 간격)
 
@@ -112,6 +115,62 @@ def push_data(api, data):
     api.spreadsheets().values().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
     for name, df in data.items():
         print(f"  {name}: {len(df)}행 x {len(df.columns)}열")
+
+
+def build_briefing_text():
+    """data/*.csv 최신 행 기준 오늘 브리핑 텍스트."""
+    import datetime
+
+    lines = [f"{datetime.date.today():%Y-%m-%d} 시장 브리핑", ""]
+
+    for name in CANDLE + ["ktb3y", "ust10y_weekly"]:
+        path = DATA / f"{name}.csv"
+        if not path.exists():
+            continue
+        df = pd.read_csv(path)
+        if len(df) < 1:
+            continue
+        cur = df.iloc[-1]
+        title = TITLES.get(name, name)
+        if len(df) >= 2 and pd.notna(cur["close"]) and pd.notna(df.iloc[-2]["close"]):
+            prev_close = df.iloc[-2]["close"]
+            diff = cur["close"] - prev_close
+            pct = diff / prev_close * 100 if prev_close else 0
+            lines.append(f"{title}: {cur['close']:,.2f} ({diff:+,.2f}, {pct:+.2f}%)")
+        else:
+            lines.append(f"{title}: {cur['close']:,.2f}")
+
+    flow_path = DATA / "investor_flow.csv"
+    if flow_path.exists():
+        df = pd.read_csv(flow_path)
+        if len(df) >= 1:
+            cur = df.iloc[-1]
+            lines.append("")
+            lines.append(
+                f"투자자별 순매수(외국인/기관/개인): "
+                f"{cur['foreign']:+,.0f} / {cur['institution']:+,.0f} / {cur['individual']:+,.0f}"
+            )
+
+    return "\n".join(lines)
+
+
+def push_briefing(api):
+    existing = sheet_ids(api)
+    if BRIEFING not in existing:
+        api.spreadsheets().batchUpdate(
+            spreadsheetId=SPREADSHEET_ID,
+            body={"requests": [{"addSheet": {"properties": {"title": BRIEFING}}}]},
+        ).execute()
+    api.spreadsheets().values().clear(
+        spreadsheetId=SPREADSHEET_ID, range=f"{BRIEFING}!A:Z"
+    ).execute()
+    api.spreadsheets().values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"{BRIEFING}!A1",
+        valueInputOption="RAW",
+        body={"values": [[build_briefing_text()]]},
+    ).execute()
+    print(f"  {BRIEFING}: 텍스트 브리핑 갱신")
 
 
 def period_label(name):
@@ -289,6 +348,7 @@ def main():
     if not args.charts:
         print("[데이터 업로드]")
         push_data(api, data)
+        push_briefing(api)
     if not args.data:
         print("[대시보드 생성]")
         build_dashboard(api, data)
