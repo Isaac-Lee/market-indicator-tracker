@@ -33,7 +33,8 @@ SPEC = {
     "wti": (183, "D"),
     "usdkrw": (183, "D"),
     "usdjpy": (183, "D"),
-    "ust10y_weekly": (1095, "W"),
+    "ust10y": (1095, "D"),
+    "ust2y": (1095, "D"),
     "ktb3y": (1095, "W"),
     "investor_flow": (730, "W"),
     "sp500": (183, "D"),
@@ -335,37 +336,31 @@ def fetch_investor(kis, start, end):
     return df[df["date"] >= pd.Timestamp(start)] if not df.empty else df
 
 
-FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10"
+FRED_SERIES = {"ust10y": "DGS10", "ust2y": "DGS2"}
 
 
-def fetch_ust10y(start, end, kis=None):
-    """미국채 10년 금리(주간).
+def fetch_fred(series_id, start, end):
+    """FRED CSV에서 일별 금리(연%)를 받는다. 키 불필요.
 
-    `codes/instruments.json`에 `overseas.ust10y`가 있으면 KIS를 먼저 시도하고,
-    빈 응답이면 FRED DGS10 CSV(키 불필요)로 대체해 주간(금요일) 종가로 리샘플한다.
-    이 계좌에서는 .TNX/TNX/^TNX/.IRX/.FVX/.TYX/BY0202 모두 빈 응답이라 FRED가 쓰인다.
+    KIS에는 미국채 시계열이 없다 — .TNX/TNX/^TNX/.IRX/.FVX/.TYX/BY0202를 시장코드
+    I/N/S/X 조합으로 전부 시도했지만 오류 없이 빈 응답만 왔다(2026-08-04 실계좌 확인).
+    FRED는 하루 지연된다(2026-08-23 조회 시 마지막이 08-20). stale 임계 5일이 흡수한다.
     """
     import io
 
     import requests
 
-    spec = CODES["overseas"].get("ust10y")
-    if kis is not None and spec:
-        df = fetch_overseas(kis, spec, start, end, period="W")
-        if not df.empty:
-            return df[["date", "open", "high", "low", "close"]]
-        print("  [정보] KIS 미국채 코드 빈 응답 -> FRED DGS10 사용")
-
-    res = requests.get(FRED_URL, timeout=20)
+    res = requests.get(
+        f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}", timeout=20
+    )
     res.raise_for_status()
     df = pd.read_csv(io.StringIO(res.text))
     df.columns = ["date", "close"]
     df["date"] = pd.to_datetime(df["date"])
-    df["close"] = pd.to_numeric(df["close"], errors="coerce")
+    df["close"] = pd.to_numeric(df["close"], errors="coerce")  # 휴장일은 "."로 온다
     df = df.dropna()
-    df = df[(df["date"] >= pd.Timestamp(start)) & (df["date"] <= pd.Timestamp(end))]
-    weekly = df.set_index("date").resample("W-FRI").last().dropna().reset_index()
-    return weekly[["date", "close"]]
+    mask = (df["date"] >= pd.Timestamp(start)) & (df["date"] <= pd.Timestamp(end))
+    return df[mask][["date", "close"]].sort_values("date")
 
 
 # ---------------------------------------------------------------- storage
@@ -405,7 +400,6 @@ def collect(days_back=None):
         "sk_hynix": lambda: fetch_domestic_stock(client("kis"), CODES["domestic_stock"]["sk_hynix"], since("sk_hynix"), today),
         "usdkrw": lambda: fetch_overseas(client("kis"), CODES["overseas"]["usdkrw"], since("usdkrw"), today),
         "usdjpy": lambda: fetch_overseas(client("kis"), CODES["overseas"]["usdjpy"], since("usdjpy"), today),
-        "ust10y_weekly": lambda: fetch_ust10y(since("ust10y_weekly"), today, client("kis")),
         "wti": lambda: fetch_wti(client("kis"), since("wti"), today),
         "ktb3y": lambda: fetch_ktb3y(since("ktb3y"), today),
         "investor_flow": lambda: fetch_investor(client("kis"), since("investor_flow"), today),
@@ -413,6 +407,9 @@ def collect(days_back=None):
 
     for name in ("sp500", "nasdaq", "dow", "russell2000", "dxy", "btc", "gold"):
         jobs[name] = (lambda n=name: fetch_yahoo(YAHOO_SERIES[n], since(n), today))
+
+    for name in FRED_SERIES:
+        jobs[name] = (lambda n=name: fetch_fred(FRED_SERIES[n], since(n), today))
 
     for name, job in jobs.items():
         print(f"[{name}] 수집 중...")

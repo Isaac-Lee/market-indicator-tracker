@@ -13,10 +13,7 @@
 
   "overseas": {
     "usdkrw": {"market": "X", "code": "FX@KRW", "_name": "원/달러(KMB) - 확인됨"},
-    "usdjpy": {"market": "X", "code": "FX@JPY", "_name": "엔/달러 - 확인됨"},
-
-    "_ust10y_사용법": "KIS 해외지수 시세를 신청한 뒤 아래 줄의 이름을 'ust10y'로 바꾸면 KIS를 먼저 시도하고, 빈 응답이면 FRED로 자동 대체된다. 현재 계좌에서는 전 코드가 빈 응답이라 기본 비활성.",
-    "_ust10y": {"market": "I", "code": ".TNX", "alternates": [".TNX", "TNX", "^TNX", "BY0202"]}
+    "usdjpy": {"market": "X", "code": "FX@JPY", "_name": "엔/달러 - 확인됨"}
   },
 
   "futures": {

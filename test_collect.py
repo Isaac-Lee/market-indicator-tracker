@@ -76,6 +76,15 @@ def test_yahoo_series_covers_every_yahoo_backed_spec():
     assert YAHOO_SERIES["wti"] == "CL=F"
 
 
+def test_fred_series_and_spec_are_daily():
+    """미국채는 일별로 저장한다. 주간 리샘플은 출력 시점(for_output)의 일이다."""
+    from collect import FRED_SERIES, SPEC
+    assert FRED_SERIES == {"ust10y": "DGS10", "ust2y": "DGS2"}, FRED_SERIES
+    assert "ust10y_weekly" not in SPEC, "옛 이름이 남아 있다"
+    for name in ("ust10y", "ust2y"):
+        assert SPEC[name][1] == "D", f"{name} 저장 주기가 일별이 아니다"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
