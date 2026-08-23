@@ -36,6 +36,13 @@ SPEC = {
     "ust10y_weekly": (1095, "W"),
     "ktb3y": (1095, "W"),
     "investor_flow": (730, "W"),
+    "sp500": (183, "D"),
+    "nasdaq": (183, "D"),
+    "dow": (183, "D"),
+    "russell2000": (183, "D"),
+    "dxy": (183, "D"),
+    "btc": (183, "D"),
+    "gold": (183, "D"),
 }
 
 
@@ -164,17 +171,29 @@ def wti_front_month(today=None):
     return f"CL{MONTH_CODE[month - 1]}{year % 100:02d}"
 
 
-def fetch_wti_yahoo(start, end):
-    """WTI 근월물 연결선물(CL=F) 일봉 OHLC. 키 불필요.
+YAHOO_SERIES = {
+    "wti": "CL=F",           # 근월물 연결선물
+    "sp500": "^GSPC",
+    "nasdaq": "^IXIC",
+    "dow": "^DJI",
+    "russell2000": "^RUT",
+    "dxy": "DX-Y.NYB",       # ICE 달러지수
+    "btc": "BTC-USD",        # 24시간 시장이라 주말에도 값이 나온다
+    "gold": "GC=F",          # COMEX 금 선물
+}
 
-    KIS NYMEX 시세를 신청하지 않은 계좌의 대체 경로. 야후 비공식 엔드포인트라 스펙이 바뀔 수 있어
-    실패하면 그대로 예외를 올린다.
+
+def fetch_yahoo(symbol, start, end, rng="2y"):
+    """Yahoo chart 엔드포인트에서 일봉 OHLC를 받는다. 키 불필요.
+
+    야후 비공식 엔드포인트라 스펙이 바뀔 수 있어 실패하면 그대로 예외를 올린다.
+    당일 미체결 봉은 close가 None으로 오므로 dropna로 버린다.
     """
     import requests
 
     res = requests.get(
-        "https://query1.finance.yahoo.com/v8/finance/chart/CL=F",
-        params={"range": "2y", "interval": "1d"},
+        f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
+        params={"range": rng, "interval": "1d"},
         headers={"User-Agent": "Mozilla/5.0"},
         timeout=20,
     )
@@ -219,7 +238,7 @@ def fetch_wti(kis, start, end):
             if "EGW00551" in str(exc) or "SUB거래소" in str(exc):
                 print(f"  [정보] {srs}: NYMEX 시세 미신청 계좌 -> 야후 CL=F로 대체 "
                       f"(KIS로 받으려면 HTS/MTS에서 해외선물 NYMEX 시세 신청)")
-                return fetch_wti_yahoo(start, end)
+                return fetch_yahoo(YAHOO_SERIES["wti"], start, end)
             raise
         batch = body.get("output2") or []
         if not batch:
@@ -391,6 +410,9 @@ def collect(days_back=None):
         "ktb3y": lambda: fetch_ktb3y(since("ktb3y"), today),
         "investor_flow": lambda: fetch_investor(client("kis"), since("investor_flow"), today),
     }
+
+    for name in ("sp500", "nasdaq", "dow", "russell2000", "dxy", "btc", "gold"):
+        jobs[name] = (lambda n=name: fetch_yahoo(YAHOO_SERIES[n], since(n), today))
 
     for name, job in jobs.items():
         print(f"[{name}] 수집 중...")

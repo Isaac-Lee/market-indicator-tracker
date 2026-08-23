@@ -66,6 +66,16 @@ def test_wti_front_month():
     assert wti_front_month(date(2025, 12, 20)) == "CLF26"  # 12월 -> 익년 1월물(F)
 
 
+def test_yahoo_series_covers_every_yahoo_backed_spec():
+    """SPEC에 있는 야후 계열은 전부 YAHOO_SERIES에 심볼이 있어야 한다."""
+    from collect import SPEC, YAHOO_SERIES
+    for name in ("wti", "sp500", "nasdaq", "dow", "russell2000", "dxy", "btc", "gold"):
+        assert name in SPEC, f"SPEC에 {name} 없음"
+        assert name in YAHOO_SERIES, f"YAHOO_SERIES에 {name} 없음"
+    assert YAHOO_SERIES["sp500"] == "^GSPC"
+    assert YAHOO_SERIES["wti"] == "CL=F"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
