@@ -36,6 +36,7 @@ SPEC = {
     "ust10y": (1095, "D"),
     "ust2y": (1095, "D"),
     "ktb3y": (1095, "W"),
+    "ktb10y": (1095, "W"),
     "investor_flow": (730, "W"),
     "sp500": (183, "D"),
     "nasdaq": (183, "D"),
@@ -256,16 +257,15 @@ def fetch_wti(kis, start, end):
     return df[df["date"] >= pd.Timestamp(start)] if not df.empty else df
 
 
-def fetch_ktb3y(start, end):
-    """국고채 3년 금리(연%) — 한국은행 ECOS.
+def fetch_ecos_rate(spec, start, end):
+    """한국은행 ECOS 시장금리(일별)에서 금리(연%)를 받는다.
 
     KIS 장내채권 API는 개별 채권의 '가격'만 주고 금리를 주지 않아 지표로 쓸 수 없다(실계좌 확인).
     ECOS 인증키(무료, https://ecos.bok.or.kr/api)는 ECOS_API_KEY 환경변수 또는
-    KIS-API-KEY.txt 의 `ECOS Key:` 줄에서 읽는다. 없으면 건너뛴다(import_ecos.py 로 수동 적재).
+    API-KEY.txt 의 `ECOS Key:` 줄에서 읽는다. 없으면 건너뛴다(import_ecos.py 로 수동 적재).
     """
     import requests
 
-    spec = CODES["bond"]["ktb3y"]
     key = read_key(r"ECOS\s*Key", "ECOS_API_KEY")
     if not key:
         print("  [건너뜀] ECOS_API_KEY 없음 -> import_ecos.py 로 수동 적재 필요")
@@ -401,7 +401,6 @@ def collect(days_back=None):
         "usdkrw": lambda: fetch_overseas(client("kis"), CODES["overseas"]["usdkrw"], since("usdkrw"), today),
         "usdjpy": lambda: fetch_overseas(client("kis"), CODES["overseas"]["usdjpy"], since("usdjpy"), today),
         "wti": lambda: fetch_wti(client("kis"), since("wti"), today),
-        "ktb3y": lambda: fetch_ktb3y(since("ktb3y"), today),
         "investor_flow": lambda: fetch_investor(client("kis"), since("investor_flow"), today),
     }
 
@@ -410,6 +409,9 @@ def collect(days_back=None):
 
     for name in FRED_SERIES:
         jobs[name] = (lambda n=name: fetch_fred(FRED_SERIES[n], since(n), today))
+
+    for name in ("ktb3y", "ktb10y"):
+        jobs[name] = (lambda n=name: fetch_ecos_rate(CODES["bond"][n], since(n), today))
 
     for name, job in jobs.items():
         print(f"[{name}] 수집 중...")

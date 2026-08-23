@@ -85,6 +85,18 @@ def test_fred_series_and_spec_are_daily():
         assert SPEC[name][1] == "D", f"{name} 저장 주기가 일별이 아니다"
 
 
+def test_bond_codes_cover_both_maturities():
+    """국고 3년·10년이 같은 ECOS 통계표의 다른 항목 코드로 잡혀 있어야 한다."""
+    import json
+    from pathlib import Path
+    from collect import SPEC
+    codes = json.loads((Path(__file__).parent / "codes" / "instruments.json").read_text())
+    assert codes["bond"]["ktb3y"]["ecos_item"] == "010200000"
+    assert codes["bond"]["ktb10y"]["ecos_item"] == "010210000"
+    assert codes["bond"]["ktb10y"]["ecos_stat"] == codes["bond"]["ktb3y"]["ecos_stat"]
+    assert SPEC["ktb10y"] == SPEC["ktb3y"], "두 만기의 기간·주기가 달라선 안 된다"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
