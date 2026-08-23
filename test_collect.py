@@ -97,6 +97,37 @@ def test_bond_codes_cover_both_maturities():
     assert SPEC["ktb10y"] == SPEC["ktb3y"], "두 만기의 기간·주기가 달라선 안 된다"
 
 
+def test_stale_series_boundary():
+    """5일은 정상, 6일은 stale. 주말 2일 + 연휴 3일까지 흡수하는 임계다."""
+    from collect import stale_series
+    today = date(2026, 8, 24)
+    last = {
+        "kospi": today,                        # 당일
+        "dxy": today - timedelta(days=5),      # 경계: 정상
+        "ktb10y": today - timedelta(days=6),   # 경계 밖: stale
+        "gold": None,                          # 한 번도 수집된 적 없음
+    }
+    got = stale_series(last, today)
+    assert [n for n, _ in got] == ["gold", "ktb10y"], got   # 이름순
+    assert dict(got)["gold"] is None
+
+
+def test_summary_line_shapes():
+    from collect import summary_line
+    assert summary_line(19, []) == "19계열 갱신 · stale 0"
+    assert summary_line(19, [("ktb10y", date(2026, 8, 14))]) == \
+        "19계열 갱신 · stale 1 (ktb10y 마지막 08-14)"
+    assert summary_line(19, [("dxy", None), ("ktb10y", date(2026, 8, 14))]) == \
+        "19계열 갱신 · stale 2 (dxy 마지막 없음, ktb10y 마지막 08-14)"
+
+
+def test_summary_line_is_one_line():
+    """다이제스트가 stdout 마지막 '줄'을 가져가므로 개행이 들어가면 안 된다."""
+    from collect import summary_line
+    many = [(f"s{i}", date(2026, 8, 1)) for i in range(19)]
+    assert "\n" not in summary_line(19, many)
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

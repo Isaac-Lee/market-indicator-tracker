@@ -377,6 +377,47 @@ def save(name, df):
     print(f"  {name}: {len(df)}행 -> {path.name}")
 
 
+# ---------------------------------------------------------------- 신선도 판정
+# 주말 2일에 연휴 3일까지 흡수한다. 그보다 오래 낡은 것은 정상적인 휴장으로
+# 설명되지 않는다. 계열별로 다른 임계를 두지 않는다 — 소스마다 숫자가 다르면
+# 어느 소스가 어떤 임계였는지 기억해야 하고, 실제로 필요한 것은 "며칠 넘게 안
+# 들어오면 이상하다" 하나뿐이다.
+STALE_LIMIT_DAYS = 5
+
+
+def last_data_dates(names):
+    """{계열: 마지막 데이터 날짜}. CSV가 없거나 비었으면 None."""
+    out = {}
+    for name in names:
+        path = DATA / f"{name}.csv"
+        if not path.exists():
+            out[name] = None
+            continue
+        df = pd.read_csv(path, parse_dates=["date"])
+        out[name] = None if df.empty else df["date"].max().date()
+    return out
+
+
+def stale_series(last, today, limit_days=STALE_LIMIT_DAYS):
+    """[(계열, 마지막날짜|None)] — 낡았거나 한 번도 안 들어온 계열. 이름순."""
+    out = []
+    for name in sorted(last):
+        when = last[name]
+        if when is None or (today - when).days > limit_days:
+            out.append((name, when))
+    return out
+
+
+def summary_line(total, stale):
+    """다이제스트가 가져갈 한 줄. 개행을 넣지 않는다(다이제스트 spec 3.1)."""
+    if not stale:
+        return f"{total}계열 갱신 · stale 0"
+    detail = ", ".join(
+        f"{name} 마지막 {when.strftime('%m-%d') if when else '없음'}" for name, when in stale
+    )
+    return f"{total}계열 갱신 · stale {len(stale)} ({detail})"
+
+
 def collect(days_back=None):
     today = date.today()
     clients = {}
@@ -489,9 +530,21 @@ def main():
         collect(days_back=args.days)
     if args.excel or args.init:
         to_excel()
+    if args.init or args.daily:
+        names = sorted(SPEC)
+        stale = stale_series(last_data_dates(names), date.today())
+        # 요약 줄은 반드시 마지막에 찍는다. run_job.py가 stdout의 마지막 줄을
+        # 그대로 다이제스트 summary로 가져간다(다이제스트 spec 3.1).
+        print(summary_line(len(names), stale))
+        if stale and len(stale) == len(names):
+            # 전 계열이 멈춘 것은 네트워크나 키 문제라 job 실패가 맞다.
+            # 일부만 낡은 것은 0으로 둔다 — 계열 하나 때문에 매일 ❌를 띄우면
+            # ❌ 자체가 무뎌진다.
+            return 1
     if not (args.init or args.daily or args.excel):
         ap.print_help()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
