@@ -40,8 +40,8 @@ KIS는 토큰 발급을 1분에 1회로 제한하고, 토스는 client당 유효
 `/usr/bin/python3` 이므로 **`/usr/bin/python3` 로 실행**할 것 (`ModuleNotFoundError: pandas` 나면 이 문제).
 
 ```bash
-/usr/bin/python3 collect.py --daily        # 오늘치 추가 (매일)
-/usr/bin/python3 upload_sheets.py --data   # 구글 시트 반영
+python collect.py --daily        # 오늘치 추가 (매일)
+python upload_sheets.py --data   # 구글 시트 반영
 ```
 
 ```bash
