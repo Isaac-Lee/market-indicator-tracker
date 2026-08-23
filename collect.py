@@ -1,16 +1,10 @@
 #!/usr/bin/env python3
-"""시장 지표 수집기 (토스증권 / 한국투자증권 Open API).
+"""시장 지표 수집기 (한국투자증권 Open API).
 
 사용법:
     python collect.py --init          # 과거치 전체 수집 (최초 1회)
     python collect.py --daily         # 최근 영업일치만 갱신 (매일 18:00 KST)
     python collect.py --excel         # data/*.csv -> market_data.xlsx (구글시트 업로드용)
-    python collect.py --daily --source kis|toss|auto
-
-데이터 소스(--source, 기본 auto):
-    auto  토스가 지원하는 지표(TOSS_JOBS)는 토스로 받고, 실패하면 KIS로 자동 대체
-    toss  토스만 사용 (토스 미지원 지표는 KIS/FRED/야후 등 기존 경로 그대로)
-    kis   기존 KIS 경로만 사용
 
 수집 결과는 data/<지표>.csv 에 날짜 기준으로 누적/갱신된다.
 """
@@ -23,7 +17,6 @@ from pathlib import Path
 import pandas as pd
 
 from kis_client import KIS, read_key
-from toss_client import Toss
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -356,128 +349,6 @@ def fetch_ust10y(start, end, kis=None):
     return weekly[["date", "close"]]
 
 
-# ---------------------------------------------------------------- 토스증권
-# 토스가 커버하는 지표만 여기 둔다. usdkrw/usdjpy(과거치)·WTI·미국채는 토스에 없어서
-# 기존 경로(KIS·야후·FRED)를 그대로 쓴다. 토스 환율은 현재가만 제공(과거 시계열 없음).
-TOSS_SYMBOL = {
-    "kospi": "KOSPI",
-    "kosdaq": "KOSDAQ",
-    "ktb3y": "KR_BOND_3Y",     # 국채 수익률(연%) — ECOS 없이도 채워진다
-    "samsung_elec": "005930",
-    "sk_hynix": "000660",
-}
-INDICATOR_SYMBOLS = {"KOSPI", "KOSDAQ"} | {f"KR_BOND_{y}" for y in ("2Y", "3Y", "5Y", "10Y", "20Y", "30Y")}
-
-
-def naive(ts):
-    """ISO8601(+09:00) -> tz 없는 KST wall time."""
-    ts = pd.Timestamp(ts)
-    return (ts.tz_localize(None) if ts.tz else ts).normalize()
-
-
-def toss_frame(candles, start):
-    """토스 캔들 응답 -> 공통 OHLC 스키마."""
-    df = pd.DataFrame(
-        [
-            {
-                "date": naive(c["timestamp"]),
-                "open": c.get("openPrice"),
-                "high": c.get("highPrice"),
-                "low": c.get("lowPrice"),
-                "close": c.get("closePrice"),
-                "volume": c.get("volume"),
-            }
-            for c in candles
-        ],
-        columns=OHLC,
-    )
-    if df.empty:
-        return df
-    for col in OHLC[1:]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-    df = df.dropna(subset=["close"]).drop_duplicates("date").sort_values("date")
-    return df[df["date"] >= pd.Timestamp(start)].reset_index(drop=True)
-
-
-def fetch_toss_candles(toss, symbol, start, end=None):
-    """일봉 조회. 1회 최대 200봉이라 nextBefore 로 start 까지 거슬러 올라간다."""
-    if symbol in INDICATOR_SYMBOLS:
-        path, params = f"/api/v1/market-indicators/{symbol}/candles", {}
-    else:
-        path, params = "/api/v1/candles", {"symbol": symbol, "adjusted": "true"}
-    params |= {"interval": "1d", "count": 200}
-    rows, before = [], end and f"{end:%Y-%m-%d}T23:59:59+09:00"
-    while True:
-        page = toss.get(path, {**params, **({"before": before} if before else {})})["result"]
-        batch = page.get("candles") or []
-        rows += batch
-        before = page.get("nextBefore")
-        if not (batch and before) or naive(batch[-1]["timestamp"]).date() <= start:
-            break
-    df = toss_frame(rows, start)
-    if symbol in ("KOSPI", "KOSDAQ") and not df.empty:
-        df["volume"] = df["volume"] / 1000  # 토스는 주, KIS 지수 거래량은 천주 -> 기존 CSV에 맞춘다
-    return df
-
-
-def fetch_toss_ktb3y(toss, start, end=None):
-    df = fetch_toss_candles(toss, TOSS_SYMBOL["ktb3y"], start, end)
-    return df[["date", "close"]] if not df.empty else df  # 기존 ECOS CSV와 동일 스키마(금리 연%)
-
-
-# 토스 응답 키 -> 기존 CSV 컬럼 (기관 세부는 breakdown 하위)
-INVESTOR_PATHS = {
-    "foreign": ("foreigner",),
-    "institution": ("institution",),
-    "individual": ("individual",),
-    "pension": ("institution", "breakdown", "pensionFund"),
-    "trust": ("institution", "breakdown", "trust"),
-}
-
-
-def toss_investor_frame(records, start):
-    def net(rec, path):
-        for key in path:
-            rec = rec.get(key) or {}
-        if "buyAmount" not in rec:
-            return None
-        # 토스는 원 단위, 기존 CSV(KIS)는 백만원 단위 순매수 -> 백만원으로 맞춘다
-        return (float(rec["buyAmount"]) - float(rec["sellAmount"])) / 1e6
-
-    df = pd.DataFrame(
-        [
-            {"date": pd.Timestamp(r["date"]), **{c: net(r, p) for c, p in INVESTOR_PATHS.items()}}
-            for r in records
-        ],
-        columns=["date"] + list(INVESTOR_PATHS),
-    )
-    if df.empty:
-        return df
-    return (
-        df.dropna(subset=["foreign"])
-        .drop_duplicates("date")
-        .sort_values("date")
-        .pipe(lambda d: d[d["date"] >= pd.Timestamp(start)])
-        .reset_index(drop=True)
-    )
-
-
-def fetch_toss_investor(toss, start, end, market="KOSPI"):
-    """투자자별 매매대금(일별). 1회 최대 100건이라 nextUntil 로 페이지를 넘긴다."""
-    rows, until = [], f"{end:%Y-%m-%d}"
-    while True:
-        body = toss.get(
-            f"/api/v1/market-indicators/{market}/investor-trading",
-            {"interval": "1d", "count": 100, "until": until},
-        )["result"]
-        batch = body.get("records") or []
-        rows += batch
-        until = body.get("nextUntil")
-        if not (batch and until) or date.fromisoformat(batch[-1]["date"]) <= start:
-            break
-    return toss_investor_frame(rows, start)
-
-
 # ---------------------------------------------------------------- storage
 def save(name, df):
     if df is None or df.empty:
@@ -492,14 +363,14 @@ def save(name, df):
     print(f"  {name}: {len(df)}행 -> {path.name}")
 
 
-def collect(days_back=None, source="auto"):
+def collect(days_back=None):
     today = date.today()
     clients = {}
 
     def client(kind):
-        """KIS/토스 인스턴스는 실제로 쓸 때만 만든다(토큰 발급 = 네트워크 호출)."""
+        """KIS 인스턴스는 실제로 쓸 때만 만든다(토큰 발급 = 네트워크 호출)."""
         if kind not in clients:
-            clients[kind] = KIS() if kind == "kis" else Toss()
+            clients[kind] = KIS()
         return clients[kind]
 
     def since(name):
@@ -508,7 +379,7 @@ def collect(days_back=None, source="auto"):
             return today - timedelta(days=days_back)
         return today - timedelta(days=SPEC[name][0])
 
-    kis_jobs = {
+    jobs = {
         "kospi": lambda: fetch_domestic_index(client("kis"), CODES["domestic_index"]["kospi"], since("kospi"), today),
         "kosdaq": lambda: fetch_domestic_index(client("kis"), CODES["domestic_index"]["kosdaq"], since("kosdaq"), today),
         "samsung_elec": lambda: fetch_domestic_stock(client("kis"), CODES["domestic_stock"]["samsung_elec"], since("samsung_elec"), today),
@@ -520,29 +391,13 @@ def collect(days_back=None, source="auto"):
         "ktb3y": lambda: fetch_ktb3y(since("ktb3y"), today),
         "investor_flow": lambda: fetch_investor(client("kis"), since("investor_flow"), today),
     }
-    toss_jobs = {
-        name: (lambda n=name: fetch_toss_candles(client("toss"), TOSS_SYMBOL[n], since(n), today))
-        for name in ("kospi", "kosdaq", "samsung_elec", "sk_hynix")
-    }
-    toss_jobs["ktb3y"] = lambda: fetch_toss_ktb3y(client("toss"), since("ktb3y"), today)
-    toss_jobs["investor_flow"] = lambda: fetch_toss_investor(
-        client("toss"), since("investor_flow"), today,
-        {"KSP": "KOSPI", "KSQ": "KOSDAQ"}[CODES["investor_market"]["market"]],
-    )
 
-    for name in kis_jobs:
-        use_toss = source != "kis" and name in toss_jobs
-        print(f"[{name}] 수집 중... ({'toss' if use_toss else 'kis'})")
+    for name, job in jobs.items():
+        print(f"[{name}] 수집 중...")
         try:
-            save(name, toss_jobs[name]() if use_toss else kis_jobs[name]())
+            save(name, job())
         except Exception as exc:  # 한 지표 실패가 나머지를 막지 않도록
             print(f"  [실패] {name}: {exc}", file=sys.stderr)
-            if use_toss and source == "auto":  # 토스 장애/권한 문제 시 KIS로 대체
-                print(f"  [대체] {name}: KIS로 재시도")
-                try:
-                    save(name, kis_jobs[name]())
-                except Exception as exc2:
-                    print(f"  [실패] {name}(kis): {exc2}", file=sys.stderr)
 
 
 # ---------------------------------------------------------------- 출력용 가공
@@ -606,13 +461,11 @@ def main():
     ap.add_argument("--daily", action="store_true", help="최근 영업일치 갱신")
     ap.add_argument("--days", type=int, default=10, help="--daily 시 조회할 최근 일수")
     ap.add_argument("--excel", action="store_true", help="CSV -> xlsx 변환")
-    ap.add_argument("--source", choices=("auto", "toss", "kis"), default="auto",
-                    help="데이터 소스 (기본 auto: 토스 우선, 실패 시 KIS)")
     args = ap.parse_args()
     if args.init:
-        collect(source=args.source)
+        collect()
     if args.daily:
-        collect(days_back=args.days, source=args.source)
+        collect(days_back=args.days)
     if args.excel or args.init:
         to_excel()
     if not (args.init or args.daily or args.excel):
