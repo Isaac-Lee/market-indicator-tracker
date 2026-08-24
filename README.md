@@ -102,8 +102,6 @@ CSV에는 수집한 원본(일별)을 그대로 쌓고, 기간 자르기·주간
   `.FVX`, `.TYX`, `BY0202`(해외 마스터의 "미국 10년 T-NOTE 수익률")를 시장코드 `I/N/S/X` 조합으로
   전부 시도했지만 오류 없이 빈 응답(`output2` 0건)만 온다 → **FRED `DGS10`**로 대체.
   키가 필요 없고 주간(금요일) 리샘플까지 로컬에서 처리한다.
-  KIS 해외지수 시세를 신청해 조회가 가능해지면 `codes/instruments.json`의 `_ust10y` 항목명을
-  `ust10y`로 바꾸면 된다. 그때는 KIS를 먼저 시도하고 빈 응답이면 FRED로 자동 대체한다.
   ECOS에도 `902Y023 주요국제금리`가 있지만 **월간**이라 주간 요구에 못 미친다.
 - **국고채 3년** — KIS 장내채권 API(`FHKBJ773404C0`)는 채권 *가격*만 주고 금리를 주지 않는다.
   ECOS(`817Y002` / `010200000`)가 맞는 소스이고, 인증키로 3년치(729영업일, 2023-08-07~)를 자동
@@ -198,7 +196,9 @@ python upload_sheets.py --charts   # 차트만 재생성
 ### 만들어지는 것
 
 - 지표별 시트: `kospi`, `kosdaq`, `samsung_elec`, `sk_hynix`, `usdkrw`, `usdjpy`, `wti`,
-  `ust10y_weekly`, `ktb3y`, `investor_flow` — 매 실행마다 전체 덮어쓰기(중복·순서 걱정 없음)
+  `ust10y`, `ktb3y`, `investor_flow`, 그리고 이후 추가된 `sp500`, `nasdaq`, `dow`,
+  `russell2000`, `dxy`, `btc`, `gold`, `ust2y`, `ktb10y` — 매 실행마다 전체
+  덮어쓰기(중복·순서 걱정 없음)
 - `dashboard` 시트(맨 앞): 차트 11개, 760x570px(4:3), 2열 격자. 배치는 `upload_sheets.py`의
   `LAYOUT` 리스트가 그대로 화면 순서다.
 

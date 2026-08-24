@@ -29,7 +29,7 @@ CANDLE = ["kospi", "kosdaq", "samsung_elec", "sk_hynix", "usdkrw", "usdjpy", "wt
 # 선 그래프로 그릴 지표 -> (시트, 값 열 이름들)
 LINES = [
     ("ktb3y", ["close"]),
-    ("ust10y_weekly", ["close"]),
+    ("ust10y", ["close"]),
     ("investor_flow", ["foreign_cum", "foreign_cum_ma4w"]),
     ("investor_flow", ["foreign_cum", "institution_cum", "individual_cum", "pension_cum"]),
 ]
@@ -42,9 +42,9 @@ TITLES = {
     "usdjpy": "달러엔 환율",
     "wti": "WTI 원유 선물",
     "ktb3y": "국고채 3년 금리",
-    "ust10y_weekly": "미국채 10년 금리",
+    "ust10y": "미국채 10년 금리",
     ("ktb3y", ("close",)): "국고채 3년 금리",
-    ("ust10y_weekly", ("close",)): "미국채 10년 금리",
+    ("ust10y", ("close",)): "미국채 10년 금리",
     ("investor_flow", ("foreign_cum", "foreign_cum_ma4w")): "외국인 누적 순매수 + 4주 MA",
     ("investor_flow", ("foreign_cum", "institution_cum", "individual_cum", "pension_cum")):
         "주체별 누적 순매수",
@@ -59,7 +59,7 @@ LAYOUT = [
     [("investor_flow", ["foreign_cum", "foreign_cum_ma4w"]),
      ("investor_flow", ["foreign_cum", "institution_cum", "individual_cum", "pension_cum"])],
     ["kospi", "kosdaq"],
-    [("ust10y_weekly", ["close"]), ("ktb3y", ["close"])],
+    [("ust10y", ["close"]), ("ktb3y", ["close"])],
     ["wti"],
     ["samsung_elec", "sk_hynix"],
     ["usdkrw", "usdjpy"],
@@ -123,7 +123,7 @@ def build_briefing_text():
 
     lines = [f"{datetime.date.today():%Y-%m-%d} 시장 브리핑", ""]
 
-    for name in CANDLE + ["ktb3y", "ust10y_weekly"]:
+    for name in CANDLE + ["ktb3y", "ust10y"]:
         path = DATA / f"{name}.csv"
         if not path.exists():
             continue
