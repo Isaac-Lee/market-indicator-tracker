@@ -2,7 +2,8 @@
 
 어둠의 알상무단을 위한 지표추적자 (Market Indicator Tracker)
 
-토스증권 / 한국투자증권 Open API로 시장 지표를 로컬에 수집하고, 구글 시트에 올릴 엑셀 파일을 만드는 도구.
+한국투자증권 Open API / ECOS / FRED / 야후 파이낸스로 시장 지표를 로컬에 수집하고, 구글 시트에 올릴
+엑셀 파일을 만드는 도구.
 
 ## 1. 설치 / 인증
 
@@ -15,9 +16,7 @@ pip install -r requirements.txt
 ```
 APP Key: ...           # 한국투자증권
 APP Secret: ...
-ECOS Key: ...          # 한국은행 ECOS 인증키 (국고채 3년 대체 경로)
-Toss Client ID: ...    # 토스증권 (WTS > 설정 > Open API)
-Toss Client Secret: ...
+ECOS Key: ...          # 한국은행 ECOS 인증키 (국고채 3년/10년 대체 경로)
 ```
 
 환경변수로 넘길 경우:
@@ -25,14 +24,10 @@ Toss Client Secret: ...
 ```bash
 export KIS_APP_KEY=... KIS_APP_SECRET=... ECOS_API_KEY=...
 export KIS_ENV=prod   # 모의투자면 vps
-export TOSS_CLIENT_ID=... TOSS_CLIENT_SECRET=...
 ```
 
-접근토큰은 `~/.kis_token.json` / `~/.toss_token.json`에 캐시되며(권한 600) 만료 10분 전까지 재사용한다.
-KIS는 토큰 발급을 1분에 1회로 제한하고, 토스는 client당 유효 토큰이 1개(재발급 시 이전 토큰 즉시 무효)이므로
-캐시를 지우지 말 것.
-
-토스는 **허용 IP 등록이 필수**다. WTS > 설정 > Open API > 허용 IP 관리에 호출 IP를 넣지 않으면 403이 난다.
+접근토큰은 `~/.kis_token.json`에 캐시되며(권한 600) 만료 10분 전까지 재사용한다.
+KIS는 토큰 발급을 1분에 1회로 제한하므로 캐시를 지우지 말 것.
 
 ## 2. 실행
 
@@ -52,35 +47,19 @@ python import_ecos.py "시장금리(일별)_04000531.xlsx"   # ECOS 엑셀 -> da
 python test_collect.py        # 네트워크 없이 로직 검증
 ```
 
-수집 결과는 `data/<지표>.csv`에 날짜 기준으로 누적된다(같은 날짜는 최신값으로 덮어씀).
-종목·지수 코드는 전부 `codes/instruments.json`에 있다. 코드가 바뀌면 그 파일만 고치면 된다.
-
-## 2.5. 데이터 소스 (토스증권 / 한국투자증권)
-
-`--source` 로 고른다. 기본은 `auto`.
-
 ```bash
-python collect.py --daily --source auto   # 토스 지원 지표는 토스, 실패하면 KIS로 자동 대체 (기본)
-python collect.py --daily --source toss   # 토스만 (미지원 지표는 기존 KIS/FRED/야후 경로 그대로)
-python collect.py --daily --source kis    # 기존 KIS 경로만
+python collect.py --snapshot              # 오늘 기준 CLAUDE.md 형식 스냅샷 표
+python collect.py --snapshot 2026-08-21   # 특정 날짜
 ```
 
-| 지표 | 토스 엔드포인트 | 비고 |
-|---|---|---|
-| `kospi` / `kosdaq` | `/api/v1/market-indicators/{KOSPI\|KOSDAQ}/candles` | KIS 값과 **완전 일치**(거래량은 주 단위로 와서 1000으로 나눠 천주로 맞춤) |
-| `ktb3y` | `/api/v1/market-indicators/KR_BOND_3Y/candles` | 종가 = 수익률 연%. ECOS 값과 일치 → **ECOS 키 없이도 수집된다** |
-| `samsung_elec` / `sk_hynix` | `/api/v1/candles` (`adjusted=true`) | ⚠ KIS와 값이 다르다(아래) |
-| `investor_flow` | `/api/v1/market-indicators/{KOSPI}/investor-trading` | ⚠ KIS와 값이 다르다(아래). 원 단위 매수-매도 → 백만원으로 환산 |
-| `wti`, `usdkrw`, `usdjpy`, `ust10y_weekly` | 없음 | 토스는 환율 **현재가**만 주고 시계열이 없다. 기존 경로 유지 |
+`--daily`/`--init`은 마지막 줄에 요약을 찍는다: `19계열 갱신 · stale 0`.
+계열의 마지막 데이터가 5일(달력) 넘게 낡으면 `stale`로 이름이 올라간다.
+휴장은 임계 안에 들어오므로 조용하고, 소스가 깨지면 드러난다.
+**전 계열이 낡았을 때만 종료 코드가 non-zero다** — 계열 하나 때문에 매일
+실패로 표시하면 실패 표시 자체가 무뎌진다.
 
-⚠ **개별 종목·수급은 두 소스를 섞지 말 것.** 2026-08-03 삼성전자 종가가 KIS 239,500 / 토스 233,500,
-거래량 27.8M / 53.0M로 다르다(토스는 KRX+NXT 통합 기준으로 보인다). 투자자 매매대금도 마찬가지로
-외국인 순매수가 KIS -2,822,021 / 토스 -3,851,193 백만원이다. 토스로 갈아탄다면
-`data/samsung_elec.csv`, `data/sk_hynix.csv`, `data/investor_flow.csv` 를 지우고 `--init` 으로 다시 받아
-계열을 한 소스로 통일해야 한다. `kospi`/`kosdaq`/`ktb3y`는 값이 같아 그냥 이어 붙여도 된다.
-
-Rate limit은 클라이언트×API그룹 단위 TPS(차트 5회/초)라 `toss_client.py`가 0.21초 간격 + 429 시
-`Retry-After` 백오프로 처리한다.
+수집 결과는 `data/<지표>.csv`에 날짜 기준으로 누적된다(같은 날짜는 최신값으로 덮어씀).
+종목·지수 코드는 전부 `codes/instruments.json`에 있다. 코드가 바뀌면 그 파일만 고치면 된다.
 
 ## 3. 수집 지표 / 사용 API
 
@@ -96,9 +75,18 @@ Rate limit은 클라이언트×API그룹 단위 TPS(차트 5회/초)라 `toss_cl
 | `wti` | WTI 원유 선물 OHLC | 해외선물 `HHDFC55020100`, 실패 시 **야후 `CL=F`** | 일 | 6개월 | 126 |
 | `usdkrw` | 원달러(원/달러 KMB) | 해외 기간별시세 `FHKST03030100` (X/`FX@KRW`) | 일 | 1년 | 243 |
 | `usdjpy` | 달러엔(엔/달러) | 동일 (X/`FX@JPY`) | 일 | 1년 | 250 |
-| `ust10y_weekly` | 미국채 10년 금리 | **FRED `DGS10`** (KIS 미지원) | 주(금) | 3년 | 156 |
+| `ust10y` | 미국채 10년 금리 | **FRED `DGS10`** (KIS 미지원) | 일 | 3년 | - |
 | `ktb3y` | 국고채 3년 금리 | **한국은행 ECOS** `817Y002`/`010200000` | 주(금) | 3년 | 157 |
 | `investor_flow` | 주체별 순매수(외국인/기관/개인/연기금/투신) | 시장별 투자자매매동향(일별) `FHPTJ04040000` | 주(금) | 2년 | 105 |
+| `sp500` | S&P 500 OHLC | 야후 `^GSPC` | 일 | 6개월 | - |
+| `nasdaq` | 나스닥 OHLC | 야후 `^IXIC` | 일 | 6개월 | - |
+| `dow` | 다우 OHLC | 야후 `^DJI` | 일 | 6개월 | - |
+| `russell2000` | 러셀 2000 OHLC | 야후 `^RUT` | 일 | 6개월 | - |
+| `dxy` | 달러지수 OHLC | 야후 `DX-Y.NYB` | 일 | 6개월 | - |
+| `btc` | 비트코인 OHLC | 야후 `BTC-USD` | 일 | 6개월 | - |
+| `gold` | 금 선물 OHLC | 야후 `GC=F` | 일 | 6개월 | - |
+| `ust2y` | 미국채 2년 금리 | FRED `DGS2` | 일 | 3년 | - |
+| `ktb10y` | 국고채 10년 금리 | ECOS `817Y002`/`010210000` | 주(금) | 3년 | - |
 
 CSV에는 수집한 원본(일별)을 그대로 쌓고, 기간 자르기·주간 집계는 출력 시점(`for_output`)에 한다.
 범위를 다시 늘려도 이미 받아둔 데이터는 버려지지 않는다.
@@ -177,24 +165,13 @@ INVESTOR_MAP = {
 
 필드명이 안 맞으면 실행 중 `[주의] 투자자 필드 미매핑: [...] / 응답필드: [...]`가 한 번 출력된다.
 
-## 4. 매일 18:00(KST) 자동 갱신
+## 4. 자동 실행
 
-로컬 cron이 가장 단순하다.
+**VPS에서만 돌린다.** 두 대가 같은 계열을 수집하면 `data/` 사본이 갈리고
+구글시트를 서로 밀어낸다. 맥에서 손으로 실행하는 것은 막지 않는다.
 
-```bash
-crontab -e
-```
-
-```cron
-0 18 * * 1-5 cd ~/Desktop/스펙/투자/market-indicator-tracker && /usr/bin/python3 collect.py --daily --excel >> update.log 2>&1
-```
-
-Claude Code에서 돌릴 경우, 이 저장소에서 다음 프롬프트로 스케줄 작업을 만들면 된다:
-
-> 매일 평일 18:00 KST에 `python collect.py --daily --excel`을 실행하고, 실패한 지표가 있으면 알려줘.
-
-`--daily`는 최근 10일을 다시 받아 같은 날짜를 덮어쓰므로, 하루 이틀 걸러 실행해도 구멍이 나지 않는다.
-휴장일에는 빈 응답이 오고 파일은 그대로 유지된다.
+cron 등록과 배치는 위키 레포의
+`docs/superpowers/specs/2026-08-23-시장지표-수집-design.md` 5장에 있다.
 
 ## 5. 구글 시트 업로드 + 대시보드
 
