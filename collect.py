@@ -506,6 +506,98 @@ def output_frames(today=None):
     return frames
 
 
+# ---------------------------------------------------------------- 스냅샷 표
+# CLAUDE.md의 observation 시장 스냅샷 표. 항목 이름과 순서를 그 문서에 맞춘다.
+# (표시명, 계열, 열). 계열이 ""이면 수집하지 않는 항목이다.
+SNAPSHOT_KR = [
+    ("KOSPI", "kospi", "close"),
+    ("KOSDAQ", "kosdaq", "close"),
+    ("주도주1 삼성전자", "samsung_elec", "close"),
+    ("주도주2 SK하이닉스", "sk_hynix", "close"),
+    ("원달러", "usdkrw", "close"),
+    ("달러엔", "usdjpy", "close"),
+    ("국고채 3년", "ktb3y", "close"),
+    ("국고채 10년", "ktb10y", "close"),
+    ("수급 외국인(백만원)", "investor_flow", "foreign"),
+    ("수급 기관(백만원)", "investor_flow", "institution"),
+    ("수급 개인(백만원)", "investor_flow", "individual"),
+]
+
+SNAPSHOT_US = [
+    ("S&P 500", "sp500", "close"),
+    ("나스닥", "nasdaq", "close"),
+    ("다우", "dow", "close"),
+    ("러셀 2000", "russell2000", "close"),
+    ("미국채 2년", "ust2y", "close"),
+    ("미국채 10년", "ust10y", "close"),
+    ("DXY", "dxy", "close"),
+    ("Fear & Greed", "", ""),   # CNN 비공식 엔드포인트가 봇을 차단한다(spec 2.4)
+    ("비트코인", "btc", "close"),
+    ("금", "gold", "close"),
+    ("WTI", "wti", "close"),
+]
+
+# 금리는 bp 단위로 읽으므로 소수 3자리, 순매수는 백만원 정수. 나머지는 2자리.
+DECIMALS = {"ktb3y": 3, "ktb10y": 3, "investor_flow": 0}
+
+# 순매수 금액 자체가 이미 흐름이라 "전일 대비 순매수의 변동"은 해석되지 않는
+# 숫자다. 못 구한 값(미확인)과 구분해야 한다 — 미확인으로 적으면 나중에 그
+# 자리를 보고 조회가 실패했다고 오해한다.
+NO_DELTA = {"investor_flow"}
+
+
+def series_pair(df, col, on):
+    """(on 이하 마지막 값, 그 직전 값). 없으면 None. 휴장일 조회도 직전 거래일로 잡힌다."""
+    if df is None or df.empty or col not in df.columns:
+        return None, None
+    rows = df[df["date"] <= pd.Timestamp(on)].dropna(subset=[col]).sort_values("date")
+    if rows.empty:
+        return None, None
+    cur = float(rows.iloc[-1][col])
+    prev = float(rows.iloc[-2][col]) if len(rows) >= 2 else None
+    return cur, prev
+
+
+def snapshot_row(label, name, cur, prev):
+    """markdown 표 한 행. 빈칸을 두지 않는다 — 못 구한 값은 미확인(CLAUDE.md)."""
+    nd = DECIMALS.get(name, 2)
+    if cur is None:
+        return f"| {label} | 미확인 | 미확인 | 미확인 |"
+    value = f"{cur:,.{nd}f}"
+    if name in NO_DELTA:
+        return f"| {label} | {value} | — | — |"
+    if prev is None:
+        return f"| {label} | {value} | 미확인 | 미확인 |"
+    diff = cur - prev
+    pct = (diff / prev * 100) if prev else None
+    diff_s = f"{diff:+,.{nd}f}"
+    pct_s = f"{pct:+.2f}%" if pct is not None else "미확인"
+    return f"| {label} | {value} | {diff_s} | {pct_s} |"
+
+
+def render_snapshot(on=None):
+    """CLAUDE.md 형식의 한국 / 미국·글로벌 표 두 개."""
+    on = on or date.today()
+    cache = {}
+
+    def frame(name):
+        if name and name not in cache:
+            path = DATA / f"{name}.csv"
+            cache[name] = pd.read_csv(path, parse_dates=["date"]) if path.exists() else None
+        return cache.get(name)
+
+    out = []
+    for title, rows in (("한국", SNAPSHOT_KR), ("미국·글로벌", SNAPSHOT_US)):
+        out.append(f"**{title}**\n")
+        out.append("| 항목 | 값 | 변동 | % |")
+        out.append("|---|---|---|---|")
+        for label, name, col in rows:
+            cur, prev = series_pair(frame(name), col, on) if name else (None, None)
+            out.append(snapshot_row(label, name, cur, prev))
+        out.append("")
+    return "\n".join(out).rstrip() + "\n"
+
+
 def to_excel(path=ROOT / "market_data.xlsx"):
     frames = output_frames()
     if not frames:
@@ -523,7 +615,13 @@ def main():
     ap.add_argument("--daily", action="store_true", help="최근 영업일치 갱신")
     ap.add_argument("--days", type=int, default=10, help="--daily 시 조회할 최근 일수")
     ap.add_argument("--excel", action="store_true", help="CSV -> xlsx 변환")
+    ap.add_argument("--snapshot", nargs="?", const="", metavar="YYYY-MM-DD",
+                    help="CLAUDE.md 형식 시장 스냅샷 표를 출력 (기본: 오늘)")
     args = ap.parse_args()
+    if args.snapshot is not None:
+        on = date.fromisoformat(args.snapshot) if args.snapshot else date.today()
+        print(render_snapshot(on), end="")
+        return 0
     if args.init:
         collect()
     if args.daily:

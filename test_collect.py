@@ -128,6 +128,53 @@ def test_summary_line_is_one_line():
     assert "\n" not in summary_line(19, many)
 
 
+def test_snapshot_tables_match_claude_md():
+    """항목 수와 순서가 CLAUDE.md의 나열과 같아야 한다."""
+    from collect import SNAPSHOT_KR, SNAPSHOT_US
+    assert len(SNAPSHOT_KR) == 11, len(SNAPSHOT_KR)
+    assert len(SNAPSHOT_US) == 11, len(SNAPSHOT_US)
+    assert [l for l, _, _ in SNAPSHOT_KR][:2] == ["KOSPI", "KOSDAQ"]
+    assert [l for l, _, _ in SNAPSHOT_US][:4] == ["S&P 500", "나스닥", "다우", "러셀 2000"]
+    # Fear & Greed는 수집하지 않으므로 계열 이름이 비어 있다
+    assert dict((l, n) for l, n, _ in SNAPSHOT_US)["Fear & Greed"] == ""
+    # 수집 대상 계열은 전부 SPEC에 있어야 한다
+    from collect import SPEC
+    for _, name, _ in SNAPSHOT_KR + SNAPSHOT_US:
+        assert name == "" or name in SPEC, name
+
+
+def test_series_pair_picks_the_row_on_or_before_the_date():
+    from collect import series_pair
+    df = pd.DataFrame({
+        "date": pd.to_datetime(["2026-08-19", "2026-08-20", "2026-08-21"]),
+        "close": [1.0, 2.0, 3.0],
+    })
+    assert series_pair(df, "close", date(2026, 8, 21)) == (3.0, 2.0)
+    assert series_pair(df, "close", date(2026, 8, 23)) == (3.0, 2.0)   # 휴장일 조회
+    assert series_pair(df, "close", date(2026, 8, 19)) == (1.0, None)  # 직전 행 없음
+    assert series_pair(df, "close", date(2026, 8, 1)) == (None, None)  # 데이터 이전
+    assert series_pair(None, "close", date(2026, 8, 21)) == (None, None)
+
+
+def test_snapshot_row_marks_missing_and_flow_columns():
+    from collect import snapshot_row
+    # 못 구한 값은 미확인, 빈칸 금지
+    assert snapshot_row("Fear & Greed", "", None, None) == \
+        "| Fear & Greed | 미확인 | 미확인 | 미확인 |"
+    # 직전 값이 없으면 변동만 미확인
+    assert snapshot_row("KOSPI", "kospi", 6912.95, None) == \
+        "| KOSPI | 6,912.95 | 미확인 | 미확인 |"
+    # 정상 행
+    assert snapshot_row("KOSPI", "kospi", 6912.95, 6852.58) == \
+        "| KOSPI | 6,912.95 | +60.37 | +0.88% |"
+    # 금리는 소수 3자리
+    assert snapshot_row("국고채 10년", "ktb10y", 4.376, 4.323) == \
+        "| 국고채 10년 | 4.376 | +0.053 | +1.23% |"
+    # 수급은 순매수 자체가 흐름이라 변동 열이 해석되지 않는다 -> 미확인이 아니라 —
+    assert snapshot_row("수급 외국인(백만원)", "investor_flow", -558024.0, 2266504.0) == \
+        "| 수급 외국인(백만원) | -558,024 | — | — |"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
