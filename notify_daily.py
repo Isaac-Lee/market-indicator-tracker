@@ -20,7 +20,7 @@ from kis_client import read_key
 ROOT = Path(__file__).resolve().parent
 PYTHON = sys.executable
 
-GOOGLE_SHEET_LINK = "https://buly.kr/CB7HJ7c"
+DASHBOARD_LINK = "https://buly.kr/2JqqPBg"   # GitHub Pages 대시보드(지표추적자)
 
 # 그룹 제목(Markdown bold): [(이모지+표시명, 계열, 열, %단위 여부), ...]
 BRIEFING_GROUPS = [
@@ -85,8 +85,8 @@ def build_briefing(on=None):
         lines.append(f"{foreign:+,.0f} / {institution:+,.0f} / {individual:+,.0f} (백만원)")
 
     lines.append("")
-    lines.append("🔗 자세히보기(구글시트)")
-    lines.append(GOOGLE_SHEET_LINK)
+    lines.append("🔗 자세히보기(웹 페이지)")
+    lines.append(DASHBOARD_LINK)
     return "\n".join(lines)
 
 

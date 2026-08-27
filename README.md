@@ -304,7 +304,7 @@ python notify_daily.py
 ```
 
 `collect.py --daily` → `upload_sheets.py --data` 를 순서대로 실행하고, 결과를
-텔레그램 메시지로 보낸다(지수·종목·환율·금리·수급 요약 + 구글시트 링크). 실패하면
+텔레그램 메시지로 보낸다(지수·종목·환율·금리·수급 요약 + 대시보드 링크). 실패하면
 어느 단계에서 어떤 에러였는지를 보낸다.
 
 봇 토큰/채팅 ID는 환경변수 `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` 또는
