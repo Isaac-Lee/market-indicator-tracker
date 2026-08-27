@@ -34,14 +34,27 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
+      # collect.py 는 계열을 받는 족족 data/*.csv 에 쓴다. 구글시트 업로드나 텔레그램
+      # 전송이 실패해도 이미 받아둔 데이터는 커밋해야 한다 — 안 그러면 그 날 수집분이
+      # 통째로 버려지고, 다음 날 --daily 는 최근 며칠만 보므로 구멍이 남는다.
       - name: 대시보드 데이터 생성
+        if: always()
         run: python build_dashboard.py
 
       - name: 결과 커밋
+        if: always()
         run: |
           rm -f google-service-account.json
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data docs
-          git diff --cached --quiet || git commit -m "자동: 일일 지표 갱신 $(date -u +%F)"
+          git diff --cached --quiet && { echo "변경 없음"; exit 0; }
+          git commit -m "자동: 일일 지표 갱신 $(date -u +%F)"
+          # 사이에 사람이 push 했으면 non-fast-forward 로 막힌다. 우리 커밋은 데이터
+          # 파일뿐이라 그 위로 rebase 해서 다시 올린다.
+          for attempt in 1 2 3; do
+            git push && exit 0
+            echo "push 실패 ($attempt) — rebase 후 재시도"
+            git pull --rebase --autostash origin main
+          done
           git push
