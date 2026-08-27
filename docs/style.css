@@ -23,6 +23,10 @@
 
 * { box-sizing: border-box; }
 
+/* 스크롤은 되지만 막대는 그리지 않는다. 탭 줄이 가로로 넘칠 때 특히 거슬린다. */
+html { scrollbar-width: none; -ms-overflow-style: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; }
+
 body {
   margin: 0;
   background: var(--bg);
@@ -63,8 +67,12 @@ nav {
   padding: 0 20px 10px;
   max-width: 1400px;
   margin: 0 auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* 구형 Edge */
 }
+
+/* 탭 줄은 가로로 넘치지만 스크롤바가 보이면 줄이 두꺼워 보인다. 스크롤은 살리고 막대만 감춘다. */
+nav::-webkit-scrollbar { display: none; }
 
 nav button {
   flex: 0 0 auto;
@@ -131,9 +139,17 @@ main {
 .row > .card { flex: 1 1 0; min-width: 0; }
 
 /* 좁은 화면에서 4개를 한 줄에 넣으면 캔들이 뭉갠다 — 그때만 줄바꿈을 허용한다. */
-@media (max-width: 1000px) {
+@media (max-width: 1100px) {
   .row { flex-wrap: wrap; }
-  .row > .card { flex: 1 1 320px; }
+  .row > .card { flex: 1 1 340px; }
+  /* 카드가 줄바꿈되면 나란히 설 일이 없으니 범례 높이를 맞춰 둘 이유도 없다. */
+  .legend { height: auto; min-height: 2.5em; }
+}
+
+/* 휴대폰: 두 장만 나란히 놓아도 캔들이 읽히지 않는다. 한 열에 한 장씩. */
+@media (max-width: 760px) {
+  .row { flex-direction: column; }
+  .row > .card { flex: 1 1 auto; width: 100%; }
 }
 
 .card {
@@ -211,3 +227,27 @@ main {
 .tooltip .t-date { color: var(--muted); margin-bottom: 3px; }
 .tooltip .t-row { display: flex; justify-content: space-between; gap: 14px; }
 .tooltip .t-row span:first-child { color: var(--muted); }
+
+/* ---------------------------------------------------------------- 휴대폰 */
+@media (max-width: 760px) {
+  .head-row { padding: 12px 14px 8px; gap: 7px; }
+  h1 { font-size: 0.95rem; }
+  #generated { font-size: 0.7rem; }
+  .logo { width: 22px; height: 22px; }
+
+  nav { padding: 0 14px 8px; }
+  nav button { padding: 6px 10px; font-size: 0.8rem; }
+
+  main { padding: 14px; }
+  .sector { margin: 18px 0 7px; }
+  .card { padding: 12px 12px 6px; }
+  .card-title { font-size: 0.85rem; }
+  .card-last { font-size: 0.78rem; }
+
+  /* 카드 머리를 위아래로 쌓는다. 종목명과 시세를 한 줄에 넣으면 폭이 모자라
+     시세 쪽이 줄바꿈되면서 줄 높이가 카드마다 달라진다. */
+  .card-head { flex-direction: column; align-items: flex-start; gap: 1px; }
+
+  /* 손가락으로는 툴팁을 커서 옆에 붙일 수 없다(손에 가린다). 카드 위쪽에 고정. */
+  .tooltip { font-size: 0.68rem; padding: 6px 8px; }
+}

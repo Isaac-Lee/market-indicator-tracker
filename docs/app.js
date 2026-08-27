@@ -37,12 +37,13 @@ const SECTORS = [
     { key: "usdjpy",        label: "달러엔",       type: "candle", unit: "엔",   digits: 2, ma: [5, 20, 60], view: 130 },
   ]},
   { title: "원자재·코인", charts: [
+    // 금은 1년 = 거래일 약 250봉, 비트코인은 주말도 열려서 1년 = 365봉이다.
     { key: "gold",          label: "금",           type: "candle", unit: "$",    digits: 1,
-      ma: [5, 20, 60, 120], extras: ["ichimoku", "macd", "rsi"], view: 100 },
+      ma: [5, 20, 60, 120], extras: ["ichimoku", "macd", "rsi"], view: 250 },
     { key: "wti",           label: "WTI 원유",     type: "candle", unit: "$",    digits: 2,
-      ma: [5, 20, 60, 120], extras: ["macd", "rsi"], view: 120 },
+      ma: [5, 20, 60, 120], extras: ["macd", "rsi"], view: 126 },
     { key: "btc",           label: "비트코인",     type: "candle", unit: "$",    digits: 0,
-      ma: [20, 60, 120], extras: ["macd", "rsi"], view: 120 },
+      ma: [20, 60, 120], extras: ["macd", "rsi"], view: 365 },
   ]},
   { title: "금리", charts: [
     { key: "ktb3y",         label: "국고채 3년",   type: "line",   unit: "%",    digits: 3, ma: [4, 12, 26, 52], view: 157 },
