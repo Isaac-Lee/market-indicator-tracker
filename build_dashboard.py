@@ -16,7 +16,8 @@ DOCS = ROOT / "docs"
 
 def main():
     DOCS.mkdir(exist_ok=True)
-    frames = collect.output_frames()
+    # trim=False: 이동평균·일목 같은 보조지표가 앞쪽 데이터를 먹으므로 쌓인 것을 전부 넘긴다.
+    frames = collect.output_frames(trim=False)
     series = {}
     for name, df in frames.items():
         df = df.copy()

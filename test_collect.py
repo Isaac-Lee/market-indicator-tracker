@@ -132,7 +132,7 @@ def test_snapshot_tables_match_claude_md():
     """항목 수와 순서가 CLAUDE.md의 나열과 같아야 한다."""
     from collect import SNAPSHOT_KR, SNAPSHOT_US
     assert len(SNAPSHOT_KR) == 11, len(SNAPSHOT_KR)
-    assert len(SNAPSHOT_US) == 11, len(SNAPSHOT_US)
+    assert len(SNAPSHOT_US) == 13, len(SNAPSHOT_US)   # 오라클·엔비디아 추가분 포함
     assert [l for l, _, _ in SNAPSHOT_KR][:2] == ["KOSPI", "KOSDAQ"]
     assert [l for l, _, _ in SNAPSHOT_US][:4] == ["S&P 500", "나스닥", "다우", "러셀 2000"]
     # Fear & Greed는 수집하지 않으므로 계열 이름이 비어 있다

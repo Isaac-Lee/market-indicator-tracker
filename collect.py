@@ -482,11 +482,15 @@ def derive_investor(df):
     return df
 
 
-def for_output(name, df, today=None):
-    """SPEC에 맞춰 기간을 자르고 주간 지표는 주(금) 단위로 묶는다."""
+def for_output(name, df, today=None, trim=True):
+    """SPEC에 맞춰 기간을 자르고 주간 지표는 주(금) 단위로 묶는다.
+
+    trim=False 면 기간을 자르지 않고 쌓인 데이터를 전부 준다. 이동평균처럼
+    앞쪽 데이터를 먹는 보조지표는 잘린 구간만으로는 앞부분이 비어버린다.
+    """
     days, freq = SPEC.get(name, (None, "D"))
     df = df.sort_values("date")
-    if days:
+    if days and trim:
         start = pd.Timestamp((today or date.today()) - timedelta(days=days))
         df = df[df["date"] >= start]
     if freq == "W":
@@ -502,11 +506,13 @@ def for_output(name, df, today=None):
     return df.reset_index(drop=True)
 
 
-def output_frames(today=None):
+def output_frames(today=None, trim=True):
     """{시트명: 출력용 DataFrame}. 엑셀·구글시트 양쪽이 같은 가공을 쓴다."""
     frames = {}
     for csv in sorted(DATA.glob("*.csv")):
-        frames[csv.stem] = for_output(csv.stem, pd.read_csv(csv, parse_dates=["date"]), today)
+        frames[csv.stem] = for_output(
+            csv.stem, pd.read_csv(csv, parse_dates=["date"]), today, trim=trim
+        )
     return frames
 
 

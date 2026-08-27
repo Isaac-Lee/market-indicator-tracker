@@ -4,97 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>시장 지표 대시보드</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<style>
-  :root { color-scheme: light dark; }
-  body { font-family: -apple-system, "Malgun Gothic", sans-serif; max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
-  h1 { font-size: 1.4rem; }
-  #generated { color: #888; font-size: 0.85rem; margin-bottom: 24px; }
-  h2 { font-size: 1.05rem; margin: 32px 0 8px; border-bottom: 1px solid #8883; padding-bottom: 4px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
-  .card { border: 1px solid #8883; border-radius: 8px; padding: 12px; }
-  .card h3 { margin: 0 0 8px; font-size: 0.9rem; }
-  canvas { max-height: 220px; }
-</style>
+<script src="https://unpkg.com/lightweight-charts@5.0.5/dist/lightweight-charts.standalone.production.js"></script>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<h1>📊 시장 지표 대시보드</h1>
-<div id="generated"></div>
-<div id="app"></div>
 
-<script>
-const GROUPS = [
-  ["지수", [["KOSPI", "kospi", "close"], ["KOSDAQ", "kosdaq", "close"], ["나스닥", "nasdaq", "close"]]],
-  ["종목", [["삼성전자", "samsung_elec", "close"], ["SK하이닉스", "sk_hynix", "close"], ["엔비디아", "nvidia", "close"], ["오라클", "oracle", "close"]]],
-  ["환율", [["원달러", "usdkrw", "close"], ["달러엔", "usdjpy", "close"]]],
-  ["금/원유", [["금", "gold", "close"], ["WTI", "wti", "close"]]],
-  ["금리", [["국고채 3년", "ktb3y", "close"], ["미국채 10년", "ust10y", "close"]]],
-];
+<header>
+  <div class="head-row">
+    <h1>시장 지표 대시보드</h1>
+    <span id="generated"></span>
+  </div>
+  <nav id="tabs"></nav>
+</header>
 
-async function main() {
-  const res = await fetch("data.json");
-  const payload = await res.json();
-  document.getElementById("generated").textContent = "갱신: " + payload.generated.slice(0, 16).replace("T", " ");
+<main id="app"></main>
 
-  const app = document.getElementById("app");
-  for (const [title, items] of GROUPS) {
-    const h2 = document.createElement("h2");
-    h2.textContent = title;
-    app.appendChild(h2);
-    const grid = document.createElement("div");
-    grid.className = "grid";
-    app.appendChild(grid);
-    for (const [label, name, col] of items) {
-      const rows = payload.series[name] || [];
-      const card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML = `<h3>${label}</h3><canvas></canvas>`;
-      grid.appendChild(card);
-      new Chart(card.querySelector("canvas"), {
-        type: "line",
-        data: {
-          labels: rows.map(r => r.date),
-          datasets: [{
-            data: rows.map(r => r[col]),
-            borderColor: "#2f81f7",
-            backgroundColor: "#2f81f733",
-            pointRadius: 0,
-            borderWidth: 1.5,
-            fill: true,
-          }],
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: { x: { ticks: { maxTicksLimit: 6 } } },
-        },
-      });
-    }
-  }
-
-  const flow = payload.series["investor_flow"] || [];
-  const h2 = document.createElement("h2");
-  h2.textContent = "수급 (누적, 백만원)";
-  app.appendChild(h2);
-  const grid = document.createElement("div");
-  grid.className = "grid";
-  grid.innerHTML = `<div class="card" style="grid-column:1/-1"><h3>외국인/기관/개인 순매수 누적</h3><canvas></canvas></div>`;
-  app.appendChild(grid);
-  new Chart(grid.querySelector("canvas"), {
-    type: "line",
-    data: {
-      labels: flow.map(r => r.date),
-      datasets: [
-        { label: "외국인", data: flow.map(r => r.foreign_cum), borderColor: "#e5484d", pointRadius: 0 },
-        { label: "기관", data: flow.map(r => r.institution_cum), borderColor: "#2f81f7", pointRadius: 0 },
-        { label: "개인", data: flow.map(r => r.individual_cum), borderColor: "#8b8b8b", pointRadius: 0 },
-      ],
-    },
-    options: { responsive: true, scales: { x: { ticks: { maxTicksLimit: 8 } } } },
-  });
-}
-
-main();
-</script>
+<script src="indicators.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

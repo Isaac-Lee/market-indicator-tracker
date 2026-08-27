@@ -255,9 +255,29 @@ python upload_sheets.py --ranges   # 데이터에 맞는 최솟값/최댓값 출
 python build_dashboard.py    # data/*.csv -> docs/data.json
 ```
 
-`docs/index.html`이 `docs/data.json`을 읽어 Chart.js로 그린다. `docs/`를 GitHub
-Pages로 게시하면(설정 → Pages → 브랜치/`docs` 폴더) 별도 서버 없이 정적으로 뜬다.
-데이터를 갱신하려면 `build_dashboard.py`를 다시 돌리고 `docs/data.json`을 커밋한다.
+`docs/index.html`이 `docs/data.json`을 읽어 [Lightweight Charts](https://tradingview.github.io/lightweight-charts/)로
+그린다. `docs/`를 GitHub Pages로 게시하면(설정 → Pages → 브랜치/`docs` 폴더)
+별도 서버 없이 정적으로 뜬다.
+
+- 위쪽 탭으로 지표를 하나씩 보거나 **통합**에서 전부 한 화면에 놓고 본다.
+  선택한 탭은 URL 해시에 남아 새로고침해도 유지된다.
+- 금리를 뺀 나머지는 캔들. 캔들에 마우스를 올리면 그 날짜의 시가·고가·저가·종가와
+  이동평균 값이 뜬다.
+- 보조지표는 `docs/app.js`의 `CHARTS` 한 곳에서 정한다. `ma`는 이동평균 기간들,
+  `extras`는 `ichimoku`/`macd`/`rsi`(서브패널로 붙는다), `view`는 처음 보여줄 봉 수다.
+  계산식은 `docs/indicators.js`에 있다.
+- 그리는 계열은 텔레그램 브리핑(`notify_daily.py`의 `BRIEFING_GROUPS`)과 같다.
+  `data/`에는 S&P·다우·러셀·달러지수·비트코인 등도 쌓이지만 차트로는 그리지 않는다.
+
+`build_dashboard.py`는 기간을 자르지 않은 전체 데이터를 넘긴다
+(`output_frames(trim=False)`). 이동평균·일목균형표가 앞쪽 데이터를 먹기 때문에,
+`SPEC` 기간만 넘기면 화면 왼쪽에서 MA120 같은 선이 잘려 나온다.
+
+야후에서 받는 계열(금·나스닥·오라클·엔비디아)은 아직 6개월치뿐이라 MA120은 끝쪽
+일부만 그려진다. 매일 수집하면서 저절로 채워진다.
+
+데이터를 갱신하려면 `build_dashboard.py`를 다시 돌리고 `docs/data.json`을 커밋한다
+(GitHub Actions가 매일 자동으로 한다).
 
 ## 7. 텔레그램 일일 브리핑
 
