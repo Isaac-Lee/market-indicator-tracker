@@ -22,41 +22,41 @@ const MA_FALLBACK = "#c86dd7";
 // 폭을 똑같이 나눠 갖는다 — 섹터마다 개수가 달라도 행의 총 폭은 같다.
 const SECTORS = [
   { title: "지수", charts: [
-    { key: "kospi",         label: "코스피",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 120 },
-    { key: "kosdaq",        label: "코스닥",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 120 },
-    { key: "nasdaq",        label: "나스닥",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 100 },
+    { key: "kospi", icon: "🇰🇷",         label: "코스피",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 120 },
+    { key: "kosdaq", icon: "🇰🇷",        label: "코스닥",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 120 },
+    { key: "nasdaq", icon: "🇺🇸",        label: "나스닥",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 100 },
   ]},
   { title: "종목", charts: [
-    { key: "samsung_elec",  label: "삼성전자",     type: "candle", unit: "원",   digits: 0, ma: [20, 60, 120], view: 110 },
-    { key: "sk_hynix",      label: "SK하이닉스",   type: "candle", unit: "원",   digits: 0, ma: [20, 60, 120], view: 110 },
-    { key: "nvidia",        label: "엔비디아",     type: "candle", unit: "$",    digits: 2, ma: [21, 60, 120], view: 100 },
-    { key: "oracle",        label: "오라클",       type: "candle", unit: "$",    digits: 2, ma: [21, 60], view: 100 },
+    { key: "samsung_elec", icon: "📱",  label: "삼성전자",     type: "candle", unit: "원",   digits: 0, ma: [20, 60, 120], view: 110 },
+    { key: "sk_hynix", icon: "💾",      label: "SK하이닉스",   type: "candle", unit: "원",   digits: 0, ma: [20, 60, 120], view: 110 },
+    { key: "nvidia", icon: "🖥",        label: "엔비디아",     type: "candle", unit: "$",    digits: 2, ma: [21, 60, 120], view: 100 },
+    { key: "oracle", icon: "☁️",        label: "오라클",       type: "candle", unit: "$",    digits: 2, ma: [21, 60], view: 100 },
   ]},
   { title: "환율", charts: [
-    { key: "usdkrw",        label: "원달러",       type: "candle", unit: "원",   digits: 2, ma: [5, 20, 60], view: 130 },
-    { key: "usdjpy",        label: "달러엔",       type: "candle", unit: "엔",   digits: 2, ma: [5, 20, 60], view: 130 },
+    { key: "usdkrw", icon: "💵",        label: "원달러",       type: "candle", unit: "원",   digits: 2, ma: [5, 20, 60], view: 130 },
+    { key: "usdjpy", icon: "💴",        label: "달러엔",       type: "candle", unit: "엔",   digits: 2, ma: [5, 20, 60], view: 130 },
   ]},
   { title: "원자재·코인", charts: [
     // 금은 1년 = 거래일 약 250봉, 비트코인은 주말도 열려서 1년 = 365봉이다.
-    { key: "gold",          label: "금",           type: "candle", unit: "$",    digits: 1,
+    { key: "gold", icon: "🥇",          label: "금",           type: "candle", unit: "$",    digits: 1,
       ma: [5, 20, 60, 120], extras: ["ichimoku", "macd", "rsi"], view: 250 },
-    { key: "wti",           label: "WTI 원유",     type: "candle", unit: "$",    digits: 2,
+    { key: "wti", icon: "🛢",           label: "WTI 원유",     type: "candle", unit: "$",    digits: 2,
       ma: [5, 20, 60, 120], extras: ["macd", "rsi"], view: 126 },
-    { key: "btc",           label: "비트코인",     type: "candle", unit: "$",    digits: 0,
+    { key: "btc", icon: "🪙",           label: "비트코인",     type: "candle", unit: "$",    digits: 0,
       ma: [20, 60, 120], extras: ["macd", "rsi"], view: 365 },
   ]},
   { title: "금리", charts: [
-    { key: "ktb3y",         label: "국고채 3년",   type: "line",   unit: "%",    digits: 3, ma: [4, 12, 26, 52], view: 157 },
-    { key: "ust10y",        label: "미국채 10년",  type: "line",   unit: "%",    digits: 3, ma: [20, 60, 120], view: 750 },
+    { key: "ktb3y", icon: "🇰🇷",         label: "국고채 3년",   type: "line",   unit: "%",    digits: 3, ma: [4, 12, 26, 52], view: 157 },
+    { key: "ust10y", icon: "🇺🇸",        label: "미국채 10년",  type: "line",   unit: "%",    digits: 3, ma: [20, 60, 120], view: 750 },
   ]},
   // 누적 순매수는 세로로 눌리면 선이 겹쳐 읽히지 않는다. 맨 아래에서 4:3으로 그린다.
   { title: "수급", charts: [
-    { key: "investor_flow", id: "foreign_flow", label: "외국인 순매수",
+    { key: "investor_flow", id: "foreign_flow", icon: "🌏", label: "외국인 순매수",
       type: "flow", digits: 0, view: 105, ratio: true, lines: [
         { col: "foreign_cum",      name: "외국인 누적", color: "#e0504a", width: 2 },
         { col: "foreign_cum_ma4w", name: "4w ma",       color: "#2962ff", width: 2 },
       ]},
-    { key: "investor_flow", id: "investor_flow", label: "주체별 순매수",
+    { key: "investor_flow", id: "investor_flow", icon: "👥", label: "주체별 순매수",
       type: "flow", digits: 0, view: 105, ratio: true, lines: [
         { col: "foreign_cum",     name: "외국인", color: "#e0504a", width: 2 },
         { col: "institution_cum", name: "기관",   color: "#2962ff", width: 2 },
@@ -134,7 +134,7 @@ function buildCard(spec, tall) {
   card.className = "card";
   card.innerHTML = `
     <div class="card-head">
-      <span class="card-title">${spec.label}</span>
+      <span class="card-title"><span class="ico">${spec.icon || ""}</span>${spec.label}</span>
       <span class="card-last"></span>
     </div>
     <div class="legend"></div>
@@ -400,7 +400,9 @@ function buildTabs() {
     group.className = "tab-group";
     nav.appendChild(group);
     add(group, sectorTab(sector.title), sector.title, "sector-btn");
-    for (const spec of sector.charts) add(group, spec.id, spec.label);
+    for (const spec of sector.charts) {
+      add(group, spec.id, (spec.icon ? spec.icon + " " : "") + spec.label);
+    }
   }
 }
 

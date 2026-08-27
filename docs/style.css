@@ -160,15 +160,38 @@ main {
   min-width: 0;
 }
 
+/* 제목이나 시세가 두 줄로 접히면 그 카드만 머리가 두꺼워져 한 행의 차트 윗선이
+   어긋난다. 둘 다 한 줄로 묶고, 폭이 모자라면 이름 쪽을 말줄임한다. */
 .card-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 4px;
+  flex-wrap: nowrap;
 }
 
+.card-title {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-last { flex: 0 0 auto; white-space: nowrap; }
+
 .card-title { font-size: 0.9rem; font-weight: 620; }
+
+/* 이모지는 폰트마다 글자보다 크게 잡혀 제목 줄 높이를 밀어올린다. 크기를 눌러
+   두고 폭도 고정해서, 이모지가 있든 없든 제목이 같은 자리에서 시작하게 한다. */
+.card-title .ico {
+  display: inline-block;
+  width: 1.15em;
+  margin-right: 3px;
+  font-size: 0.95em;
+  line-height: 1;
+  text-align: center;
+}
 .card-period { font-size: 0.72rem; color: var(--muted); }
 
 .card-last {

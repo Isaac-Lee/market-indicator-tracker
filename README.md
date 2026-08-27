@@ -273,6 +273,8 @@ python build_dashboard.py    # data/*.csv -> docs/data.json
 - 보조지표는 `docs/app.js`의 `CHARTS` 한 곳에서 정한다. `ma`는 이동평균 기간들,
   `extras`는 `ichimoku`/`macd`/`rsi`(서브패널로 붙는다), `view`는 처음 보여줄 봉 수다.
   계산식은 `docs/indicators.js`에 있다.
+- 카드와 탭 앞의 이모지는 텔레그램 브리핑과 같은 것을 쓴다(`CHARTS`의 `icon`).
+  기업 로고는 상표라 이미지 파일을 따로 받아 넣어야 해서 이모지로 대신했다.
 - 그리는 계열은 텔레그램 브리핑(`notify_daily.py`의 `BRIEFING_GROUPS`)과 같다.
   `data/`에는 S&P·다우·러셀·달러지수·비트코인 등도 쌓이지만 차트로는 그리지 않는다.
 
