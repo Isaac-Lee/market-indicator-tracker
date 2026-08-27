@@ -21,9 +21,6 @@ const MA_FALLBACK = "#c86dd7";
 // 섹터 순서가 곧 통합 뷰의 행 순서다. 한 섹터는 한 행을 통째로 쓰고, 그 안의 차트들이
 // 폭을 똑같이 나눠 갖는다 — 섹터마다 개수가 달라도 행의 총 폭은 같다.
 const SECTORS = [
-  { title: "수급", charts: [
-    { key: "investor_flow", label: "주체별 순매수", type: "flow",   unit: "백만원", digits: 0, view: 105 },
-  ]},
   { title: "지수", charts: [
     { key: "kospi",         label: "코스피",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 120 },
     { key: "kosdaq",        label: "코스닥",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 120 },
@@ -45,23 +42,33 @@ const SECTORS = [
     { key: "wti",           label: "WTI 원유",     type: "candle", unit: "$",    digits: 2,
       ma: [5, 20, 60, 120], extras: ["macd", "rsi"], view: 120 },
     { key: "btc",           label: "비트코인",     type: "candle", unit: "$",    digits: 0,
-      ma: [20, 60, 120], extras: ["rsi"], view: 120 },
+      ma: [20, 60, 120], extras: ["macd", "rsi"], view: 120 },
   ]},
   { title: "금리", charts: [
     { key: "ktb3y",         label: "국고채 3년",   type: "line",   unit: "%",    digits: 3, ma: [4, 12, 26, 52], view: 157 },
     { key: "ust10y",        label: "미국채 10년",  type: "line",   unit: "%",    digits: 3, ma: [20, 60, 120], view: 750 },
   ]},
+  // 누적 순매수는 세로로 눌리면 선이 겹쳐 읽히지 않는다. 맨 아래에서 4:3으로 그린다.
+  { title: "수급", charts: [
+    { key: "investor_flow", id: "foreign_flow", label: "외국인 순매수",
+      type: "flow", digits: 0, view: 105, ratio: true, lines: [
+        { col: "foreign_cum",      name: "외국인 누적", color: "#e0504a", width: 2 },
+        { col: "foreign_cum_ma4w", name: "4w ma",       color: "#2962ff", width: 2 },
+      ]},
+    { key: "investor_flow", id: "investor_flow", label: "주체별 순매수",
+      type: "flow", digits: 0, view: 105, ratio: true, lines: [
+        { col: "foreign_cum",     name: "외국인", color: "#e0504a", width: 2 },
+        { col: "institution_cum", name: "기관",   color: "#2962ff", width: 2 },
+        { col: "individual_cum",  name: "개인",   color: "#22a06b", width: 2 },
+        { col: "pension_cum",     name: "연기금", color: "#8b7fd4", width: 1 },
+      ]},
+  ]},
 ];
+
+// 탭/해시가 가리키는 이름. 같은 계열을 다르게 그리는 카드가 있어 key 로는 부족하다.
+for (const sector of SECTORS) for (const spec of sector.charts) spec.id ||= spec.key;
 
 const CHARTS = SECTORS.flatMap(s => s.charts);
-
-const FLOW_LINES = [
-  { col: "foreign_cum",     name: "외국인", color: "#e0504a", width: 2 },
-  { col: "institution_cum", name: "기관",   color: "#2962ff", width: 2 },
-  { col: "individual_cum",  name: "개인",   color: "#22a06b", width: 2 },
-  { col: "pension_cum",     name: "연기금", color: "#8b7fd4", width: 1 },
-  { col: "foreign_cum_ma4w", name: "외국인 4w ma", color: "#f0a04a", width: 1 },
-];
 
 let DATA = null;
 const charts = [];   // 열려 있는 차트들 — 리사이즈/정리에 쓴다
@@ -111,6 +118,10 @@ function themeOptions() {
       vertLine: { color: css("--muted"), width: 1, style: 2, labelBackgroundColor: css("--accent") },
       horzLine: { color: css("--muted"), width: 1, style: 2, labelBackgroundColor: css("--accent") },
     },
+    // 페이지를 스크롤하다가 커서가 차트 위를 지나면 휠이 차트 확대로 먹혀서
+    // 보고 있던 구간이 멋대로 바뀐다. 확대·이동을 통째로 끄고 고정 구간만 본다.
+    handleScroll: false,
+    handleScale: false,
   };
 }
 
@@ -126,7 +137,7 @@ function buildCard(spec, tall) {
       <span class="card-last"></span>
     </div>
     <div class="legend"></div>
-    <div class="chart-wrap"><div class="tooltip"></div></div>`;
+    <div class="chart-wrap${spec.ratio ? " ratio" : ""}"><div class="tooltip"></div></div>`;
 
   const wrap = card.querySelector(".chart-wrap");
   const tooltip = card.querySelector(".tooltip");
@@ -134,7 +145,9 @@ function buildCard(spec, tall) {
 
   const extras = spec.extras || [];
   const paneCount = 1 + extras.filter(e => e === "macd" || e === "rsi").length;
-  const height = (tall ? 460 : 260) + (paneCount - 1) * (tall ? 140 : 84);
+  // ratio 차트는 높이를 CSS(aspect-ratio)가 정하고 autoSize가 따라간다.
+  const height = spec.ratio ? undefined
+    : (tall ? 460 : 260) + (paneCount - 1) * (tall ? 140 : 84);
 
   const chart = LWC.createChart(wrap, { ...themeOptions(), height, autoSize: true });
   charts.push(chart);
@@ -163,7 +176,7 @@ function buildCard(spec, tall) {
     });
     main.setData(rows.map(r => ({ time: r.date, value: r.close })));
   } else {
-    for (const line of FLOW_LINES) {
+    for (const line of spec.lines) {
       const series = chart.addSeries(LWC.LineSeries, {
         color: line.color, lineWidth: line.width,
         priceFormat: { type: "custom", formatter: fmtFlow, minMove: 1 },
@@ -289,7 +302,7 @@ function buildCard(spec, tall) {
     } else if (spec.type === "line") {
       body += line("종가", fmt(row.close, spec.digits) + spec.unit);
     } else {
-      for (const l of FLOW_LINES) body += line(l.name, fmtFlow(row[l.col]) + "원");
+      for (const l of spec.lines) body += line(l.name, fmtFlow(row[l.col]) + "원");
     }
     for (const ma of maSeries) {
       const v = param.seriesData.get(ma.series);
@@ -322,50 +335,78 @@ function buildCard(spec, tall) {
 
 /* ---------------------------------------------------------------- 렌더 */
 
-function render(tabKey) {
+/* 탭 이름: "all"(전 섹터) | "sector:<제목>"(그 섹터 전체) | 차트 id(하나만) */
+
+const sectorTab = title => "sector:" + title;
+
+function sectorBlock(app, sector, tall) {
+  const heading = document.createElement("h2");
+  heading.className = "sector";
+  heading.textContent = sector.title;
+  app.appendChild(heading);
+
+  // 한 섹터 = 한 행. 카드가 flex: 1 이라 개수가 달라도 행 전체 폭은 같다.
+  const row = document.createElement("div");
+  row.className = "row";
+  app.appendChild(row);
+  for (const spec of sector.charts) row.appendChild(buildCard(spec, tall));
+}
+
+function render(tab) {
   for (const chart of charts.splice(0)) chart.remove();
 
   const app = document.getElementById("app");
   app.innerHTML = "";
 
-  if (tabKey === "all") {
-    for (const sector of SECTORS) {
-      const heading = document.createElement("h2");
-      heading.className = "sector";
-      heading.textContent = sector.title;
-      app.appendChild(heading);
-
-      // 한 섹터 = 한 행. 카드가 flex: 1 이라 개수가 달라도 행 전체 폭은 같다.
-      const row = document.createElement("div");
-      row.className = "row";
-      app.appendChild(row);
-      for (const spec of sector.charts) row.appendChild(buildCard(spec, false));
-    }
+  if (tab === "all") {
+    for (const sector of SECTORS) sectorBlock(app, sector, false);
+  } else if (tab.startsWith("sector:")) {
+    // 섹터 하나만 볼 때는 카드가 몇 장 없으니 크게 그린다.
+    const sector = SECTORS.find(s => sectorTab(s.title) === tab);
+    if (sector) sectorBlock(app, sector, sector.charts.length <= 2);
   } else {
     const row = document.createElement("div");
     row.className = "row";
     app.appendChild(row);
-    const spec = CHARTS.find(c => c.key === tabKey);
+    const spec = CHARTS.find(c => c.id === tab);
     if (spec) row.appendChild(buildCard(spec, true));
   }
 
   for (const btn of document.querySelectorAll("nav button")) {
-    btn.classList.toggle("active", btn.dataset.key === tabKey);
+    btn.classList.toggle("active", btn.dataset.tab === tab);
   }
-  location.hash = tabKey;
+  location.hash = tab;
 }
 
 function buildTabs() {
   const nav = document.getElementById("tabs");
-  const tabs = [{ key: "all", label: "통합" },
-                ...CHARTS.map(c => ({ key: c.key, label: c.label }))];
-  for (const tab of tabs) {
+
+  const add = (parent, tab, label, cls) => {
     const btn = document.createElement("button");
-    btn.textContent = tab.label;
-    btn.dataset.key = tab.key;
-    btn.onclick = () => render(tab.key);
-    nav.appendChild(btn);
+    btn.textContent = label;
+    btn.dataset.tab = tab;
+    if (cls) btn.className = cls;
+    btn.onclick = () => render(tab);
+    parent.appendChild(btn);
+    return btn;
+  };
+
+  add(nav, "all", "통합", "sector-btn");
+  for (const sector of SECTORS) {
+    // 섹터 버튼이 그 섹터의 지표 버튼들을 이끈다. 묶음마다 세로선으로 끊어서
+    // 어느 지표가 어느 섹터에 속하는지 탭 줄만 보고도 알 수 있게 한다.
+    const group = document.createElement("div");
+    group.className = "tab-group";
+    nav.appendChild(group);
+    add(group, sectorTab(sector.title), sector.title, "sector-btn");
+    for (const spec of sector.charts) add(group, spec.id, spec.label);
   }
+}
+
+function isKnownTab(tab) {
+  return tab === "all"
+    || SECTORS.some(s => sectorTab(s.title) === tab)
+    || CHARTS.some(c => c.id === tab);
 }
 
 async function main() {
@@ -373,8 +414,8 @@ async function main() {
   document.getElementById("generated").textContent =
     "갱신 " + DATA.generated.slice(0, 16).replace("T", " ");
   buildTabs();
-  const initial = location.hash.slice(1);
-  render(CHARTS.some(c => c.key === initial) || initial === "all" ? initial : "all");
+  const initial = decodeURIComponent(location.hash.slice(1));
+  render(isKnownTab(initial) ? initial : "all");
 }
 
 main();

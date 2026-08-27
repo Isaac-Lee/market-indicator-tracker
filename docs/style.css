@@ -42,12 +42,16 @@ header {
 
 .head-row {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
+  align-items: center;
+  gap: 9px;
   padding: 16px 20px 10px;
   max-width: 1400px;
   margin: 0 auto;
 }
+
+.logo { display: block; flex: 0 0 auto; }
+
+#generated { margin-left: 3px; }
 
 h1 { font-size: 1.05rem; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
 #generated { font-size: 0.78rem; color: var(--muted); }
@@ -83,6 +87,23 @@ nav button.active {
   color: #fff;
   font-weight: 600;
 }
+
+/* 섹터 버튼 + 그 섹터의 지표 버튼들이 한 묶음. 묶음 사이를 세로선으로 끊는다. */
+.tab-group {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding-left: 8px;
+  margin-left: 4px;
+  border-left: 1px solid var(--border);
+}
+
+nav button.sector-btn {
+  color: var(--text);
+  font-weight: 600;
+}
+
+nav button.sector-btn:not(.active) { background: var(--grid); }
 
 main {
   max-width: 1400px;
@@ -142,14 +163,19 @@ main {
 .card-last .chg-up { color: var(--up); }
 .card-last .chg-down { color: var(--down); }
 
+/* 높이를 두 줄로 고정한다. 범례가 한 줄인 카드와 두 줄인 카드(일목균형표처럼
+   선이 많은 것)가 한 행에 같이 서면, 고정하지 않는 한 차트 위쪽이 어긋난다. */
 .legend {
   display: flex;
   flex-wrap: wrap;
+  align-content: flex-start;
   gap: 4px 12px;
   font-size: 0.7rem;
+  line-height: 1.25;
   color: var(--muted);
   margin: 2px 0 8px;
-  min-height: 1em;
+  height: 2.5em;
+  overflow: hidden;
 }
 
 .legend .sw {
@@ -162,6 +188,9 @@ main {
 }
 
 .chart-wrap { position: relative; }
+
+/* 누적 순매수는 가로로만 길면 선들이 겹쳐 읽히지 않는다. 폭에 비례해 높이를 준다. */
+.chart-wrap.ratio { aspect-ratio: 4 / 3; }
 
 .tooltip {
   position: absolute;

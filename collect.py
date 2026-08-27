@@ -620,6 +620,11 @@ def main():
     ap.add_argument("--init", action="store_true", help="과거치 전체 수집")
     ap.add_argument("--daily", action="store_true", help="최근 영업일치 갱신")
     ap.add_argument("--days", type=int, default=10, help="--daily 시 조회할 최근 일수")
+    ap.add_argument("--backfill", type=int, metavar="DAYS",
+                    help="SPEC 기간을 무시하고 DAYS 일치를 전 계열에 대해 다시 받는다. "
+                         "대시보드 이동평균은 화면에 보이는 구간보다 앞의 데이터를 먹으므로 "
+                         "SPEC 기간만 쌓여 있으면 MA120 같은 선이 왼쪽에서 잘린다. "
+                         "CSV는 덮어쓰지 않고 합쳐지므로(save) 한 번만 돌리면 된다.")
     ap.add_argument("--excel", action="store_true", help="CSV -> xlsx 변환")
     ap.add_argument("--snapshot", nargs="?", const="", metavar="YYYY-MM-DD",
                     help="CLAUDE.md 형식 시장 스냅샷 표를 출력 (기본: 오늘)")
@@ -630,11 +635,13 @@ def main():
         return 0
     if args.init:
         collect()
+    if args.backfill:
+        collect(days_back=args.backfill)
     if args.daily:
         collect(days_back=args.days)
     if args.excel or args.init:
         to_excel()
-    if args.init or args.daily:
+    if args.init or args.daily or args.backfill:
         names = sorted(SPEC)
         stale = stale_series(last_data_dates(names), date.today())
         # 요약 줄은 반드시 마지막에 찍는다. run_job.py가 stdout의 마지막 줄을
@@ -645,7 +652,7 @@ def main():
             # 일부만 낡은 것은 0으로 둔다 — 계열 하나 때문에 매일 ❌를 띄우면
             # ❌ 자체가 무뎌진다.
             return 1
-    if not (args.init or args.daily or args.excel):
+    if not (args.init or args.daily or args.excel or args.backfill):
         ap.print_help()
     return 0
 
