@@ -377,6 +377,10 @@ def save(name, df):
     if path.exists():
         old = pd.read_csv(path, parse_dates=["date"])
         df = pd.concat([old, df]).drop_duplicates("date", keep="last").sort_values("date")
+    # 야후는 조정주가(NVDA/ORCL 등)를 호출마다 1e-12 수준으로 다르게 준다. 그대로 쓰면
+    # 값이 실제로 변하지도 않았는데 매 실행마다 수백 줄이 다시 쓰여 커밋이 지저분해진다.
+    # 소수 6자리면 어떤 호가보다도 촘촘하므로 잘려나가는 정보가 없다.
+    df = df.round(6)
     df.to_csv(path, index=False, date_format="%Y-%m-%d")
     print(f"  {name}: {len(df)}행 -> {path.name}")
 
