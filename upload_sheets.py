@@ -25,7 +25,8 @@ CRED_FILE = Path(__file__).parent / "google-service-account.json"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 # 캔들차트로 그릴 지표 (CSV 열 순서: date, open, high, low, close, volume)
-CANDLE = ["kospi", "kosdaq", "samsung_elec", "sk_hynix", "usdkrw", "usdjpy", "wti"]
+CANDLE = ["kospi", "kosdaq", "samsung_elec", "sk_hynix", "usdkrw", "usdjpy", "wti",
+          "nasdaq", "gold", "oracle", "nvidia"]
 # 선 그래프로 그릴 지표 -> (시트, 값 열 이름들)
 LINES = [
     ("ktb3y", ["close"]),
@@ -41,6 +42,10 @@ TITLES = {
     "usdkrw": "원달러 환율",
     "usdjpy": "달러엔 환율",
     "wti": "WTI 원유 선물",
+    "nasdaq": "나스닥",
+    "gold": "금",
+    "oracle": "오라클",
+    "nvidia": "엔비디아",
     "ktb3y": "국고채 3년 금리",
     "ust10y": "미국채 10년 금리",
     ("ktb3y", ("close",)): "국고채 3년 금리",
@@ -52,16 +57,16 @@ TITLES = {
 DASHBOARD = "dashboard"
 BRIEFING = "briefing"
 CHART_W, CHART_H = 760, 570  # 4:3, 캔들이 보이도록 크게
-GRID_ROWS, GRID_COLS = 28, 8  # 차트 하나가 차지하는 셀 수(anchor 간격)
+GAP = 40  # 차트 사이 여백(px). 픽셀 오프셋 anchor라 실제 열/행 폭과 무관하게 겹치지 않는다.
 
 # 대시보드 배치: 행 단위로 왼쪽 -> 오른쪽. 캔들은 시트명, 선 그래프는 (시트명, 열들)
 LAYOUT = [
     [("investor_flow", ["foreign_cum", "foreign_cum_ma4w"]),
      ("investor_flow", ["foreign_cum", "institution_cum", "individual_cum", "pension_cum"])],
-    ["kospi", "kosdaq"],
+    ["kospi", "kosdaq", "nasdaq"],
     [("ust10y", ["close"]), ("ktb3y", ["close"])],
-    ["wti"],
-    ["samsung_elec", "sk_hynix"],
+    ["wti", "gold"],
+    ["samsung_elec", "sk_hynix", "nvidia", "oracle"],
     ["usdkrw", "usdjpy"],
 ]
 
@@ -237,7 +242,7 @@ def axis_range(df, cols):
     if lo == hi:
         return None
     span = hi - lo
-    lo, hi = lo - span * 0.05, hi + span * 0.05
+    lo, hi = lo - span * 0.015, hi + span * 0.015
 
     def round_to(v, fn):
         if v == 0:
@@ -292,10 +297,11 @@ def build_dashboard(api, data):
     requests = []
 
     def anchor(row, col):
+        # 열/행 개수가 아니라 픽셀 오프셋으로 배치 -> 실제 열 폭이 좁아도 안 겹친다.
         return {
-            "anchorCell": {"sheetId": dash,
-                           "rowIndex": row * GRID_ROWS,
-                           "columnIndex": col * GRID_COLS},
+            "anchorCell": {"sheetId": dash, "rowIndex": 0, "columnIndex": 0},
+            "offsetXPixels": col * (CHART_W + GAP),
+            "offsetYPixels": row * (CHART_H + GAP),
             "widthPixels": CHART_W,
             "heightPixels": CHART_H,
         }

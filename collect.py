@@ -45,6 +45,8 @@ SPEC = {
     "dxy": (183, "D"),
     "btc": (183, "D"),
     "gold": (183, "D"),
+    "oracle": (183, "D"),
+    "nvidia": (183, "D"),
 }
 
 
@@ -182,6 +184,8 @@ YAHOO_SERIES = {
     "dxy": "DX-Y.NYB",       # ICE 달러지수
     "btc": "BTC-USD",        # 24시간 시장이라 주말에도 값이 나온다
     "gold": "GC=F",          # COMEX 금 선물
+    "oracle": "ORCL",
+    "nvidia": "NVDA",
 }
 
 
@@ -445,7 +449,7 @@ def collect(days_back=None):
         "investor_flow": lambda: fetch_investor(client("kis"), since("investor_flow"), today),
     }
 
-    for name in ("sp500", "nasdaq", "dow", "russell2000", "dxy", "btc", "gold"):
+    for name in ("sp500", "nasdaq", "dow", "russell2000", "dxy", "btc", "gold", "oracle", "nvidia"):
         jobs[name] = (lambda n=name: fetch_yahoo(YAHOO_SERIES[n], since(n), today))
 
     for name in FRED_SERIES:
@@ -535,6 +539,8 @@ SNAPSHOT_US = [
     ("비트코인", "btc", "close"),
     ("금", "gold", "close"),
     ("WTI", "wti", "close"),
+    ("오라클", "oracle", "close"),
+    ("엔비디아", "nvidia", "close"),
 ]
 
 # 금리는 bp 단위로 읽으므로 소수 3자리, 순매수는 백만원 정수. 나머지는 2자리.

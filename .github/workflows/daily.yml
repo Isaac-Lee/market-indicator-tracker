@@ -1,0 +1,47 @@
+name: daily-collect
+
+on:
+  schedule:
+    - cron: "10 7 * * 1-5"   # 07:10 UTC = 16:10 KST, 평일
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      - name: google-service-account.json 복원
+        run: echo "$GOOGLE_SERVICE_ACCOUNT_JSON" > google-service-account.json
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+
+      - name: 수집 + 업로드 + 텔레그램 알림
+        run: python notify_daily.py
+        env:
+          KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
+          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: 대시보드 데이터 생성
+        run: python build_dashboard.py
+
+      - name: 결과 커밋
+        run: |
+          rm -f google-service-account.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data docs
+          git diff --cached --quiet || git commit -m "자동: 일일 지표 갱신 $(date -u +%F)"
+          git push
