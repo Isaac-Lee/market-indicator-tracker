@@ -36,13 +36,20 @@ body {
   font-feature-settings: "tnum";
 }
 
+/* viewport-fit=cover 라 페이지가 노치·홈바 밑까지 깔린다. 붙어 있는 머리말이
+   상태바에 파고들지 않도록 위쪽 안전영역만큼 밀어준다(그 밖에서는 0). */
 header {
   position: sticky;
   top: 0;
   z-index: 10;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
+  padding-top: env(safe-area-inset-top);
 }
+
+/* 텔레그램 인앱 브라우저는 iOS 기본 글자 확대를 켠 채로 연다. 그대로 두면
+   가로 폭이 밀려 카드가 화면 밖으로 나간다. */
+body { -webkit-text-size-adjust: 100%; }
 
 .head-row {
   display: flex;
@@ -261,7 +268,13 @@ main {
   nav { padding: 0 14px 8px; }
   nav button { padding: 6px 10px; font-size: 0.8rem; }
 
-  main { padding: 14px; }
+  /* 가로는 노치 쪽 여백을, 아래는 홈 인디케이터 높이를 더해 준다. */
+  main {
+    padding: 14px;
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
   .sector { margin: 18px 0 7px; }
   .card { padding: 12px 12px 6px; }
   .card-title { font-size: 0.85rem; }

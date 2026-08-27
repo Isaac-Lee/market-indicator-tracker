@@ -3,7 +3,12 @@ name: daily-collect
 on:
   schedule:
     - cron: "10 7 * * 1-5"   # 07:10 UTC = 16:10 KST, 평일
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      skip_kis:
+        description: "KIS 수집 건너뛰기 (토큰 발급 알림톡 안 받기)"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -33,6 +38,8 @@ jobs:
           ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # 예약 실행(inputs 없음)은 항상 전체 수집한다 — 하루 한 통은 정상 비용이다.
+          SKIP_KIS: ${{ inputs.skip_kis && '1' || '0' }}
 
       # collect.py 는 계열을 받는 족족 data/*.csv 에 쓴다. 구글시트 업로드나 텔레그램
       # 전송이 실패해도 이미 받아둔 데이터는 커밋해야 한다 — 안 그러면 그 날 수집분이

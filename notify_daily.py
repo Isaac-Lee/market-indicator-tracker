@@ -6,6 +6,7 @@
 텔레그램 봇 토큰/채팅ID는 TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID 환경변수 또는
 API-KEY.txt 의 `Telegram Bot Token:` / `Telegram Chat ID:` 줄에서 읽는다.
 """
+import os
 import subprocess
 import sys
 from datetime import date
@@ -117,7 +118,10 @@ def last_line(output):
 
 
 def main():
-    rc1, out1 = run("collect.py", "--daily")
+    # SKIP_KIS=1 이면 KIS 계열을 건너뛴다. 손으로 여러 번 돌려볼 때 KIS 알림톡이
+    # 매번 오는 것을 막으려는 것이라, 예약 실행에서는 켜지 않는다.
+    extra = ["--skip-kis"] if os.environ.get("SKIP_KIS") == "1" else []
+    rc1, out1 = run("collect.py", "--daily", *extra)
     rc2, out2 = (run("upload_sheets.py", "--data") if rc1 == 0 else (rc1, "collect 실패로 건너뜀"))
 
     if rc1 == 0 and rc2 == 0:

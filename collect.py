@@ -426,7 +426,7 @@ def summary_line(total, stale):
     return f"{total}계열 갱신 · stale {len(stale)} ({detail})"
 
 
-def collect(days_back=None):
+def collect(days_back=None, skip_kis=False):
     today = date.today()
     clients = {}
 
@@ -452,6 +452,15 @@ def collect(days_back=None):
         "wti": lambda: fetch_wti(client("kis"), since("wti"), today),
         "investor_flow": lambda: fetch_investor(client("kis"), since("investor_flow"), today),
     }
+
+    if skip_kis:
+        # KIS는 토큰을 새로 받을 때마다 계정으로 알림톡이 간다. 러너는 매번 새 환경이라
+        # 토큰 캐시(~/.kis_token.json)가 없어서 실행 한 번이 알림 한 통이 된다.
+        # 손으로 여러 번 돌려보는 경우에 KIS 계열만 건너뛴다.
+        jobs.clear()
+        # WTI는 원래도 KIS 실패 시 야후로 넘어가므로, 여기서는 바로 야후로 받는다.
+        jobs["wti"] = lambda: fetch_yahoo(YAHOO_SERIES["wti"], since("wti"), today)
+        print("[건너뜀] KIS 계열 (--skip-kis) — WTI는 야후로 대체")
 
     for name in ("sp500", "nasdaq", "dow", "russell2000", "dxy", "btc", "gold", "oracle", "nvidia"):
         jobs[name] = (lambda n=name: fetch_yahoo(YAHOO_SERIES[n], since(n), today))
@@ -630,6 +639,10 @@ def main():
                          "SPEC 기간만 쌓여 있으면 MA120 같은 선이 왼쪽에서 잘린다. "
                          "CSV는 덮어쓰지 않고 합쳐지므로(save) 한 번만 돌리면 된다.")
     ap.add_argument("--excel", action="store_true", help="CSV -> xlsx 변환")
+    ap.add_argument("--skip-kis", action="store_true",
+                    help="KIS 계열(코스피·코스닥·삼성전자·SK하이닉스·환율·수급)을 건너뛴다. "
+                         "KIS는 토큰을 새로 받을 때마다 계정으로 알림톡을 보내므로, "
+                         "손으로 여러 번 돌려볼 때 쓴다. WTI는 야후로 대체된다.")
     ap.add_argument("--snapshot", nargs="?", const="", metavar="YYYY-MM-DD",
                     help="CLAUDE.md 형식 시장 스냅샷 표를 출력 (기본: 오늘)")
     args = ap.parse_args()
@@ -638,11 +651,11 @@ def main():
         print(render_snapshot(on), end="")
         return 0
     if args.init:
-        collect()
+        collect(skip_kis=args.skip_kis)
     if args.backfill:
-        collect(days_back=args.backfill)
+        collect(days_back=args.backfill, skip_kis=args.skip_kis)
     if args.daily:
-        collect(days_back=args.days)
+        collect(days_back=args.days, skip_kis=args.skip_kis)
     if args.excel or args.init:
         to_excel()
     if args.init or args.daily or args.backfill:
