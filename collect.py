@@ -534,19 +534,13 @@ SNAPSHOT_KR = [
 ]
 
 SNAPSHOT_US = [
-    ("S&P 500", "sp500", "close"),
     ("나스닥", "nasdaq", "close"),
-    ("다우", "dow", "close"),
-    ("러셀 2000", "russell2000", "close"),
-    ("미국채 2년", "ust2y", "close"),
     ("미국채 10년", "ust10y", "close"),
-    ("DXY", "dxy", "close"),
-    ("Fear & Greed", "", ""),   # CNN 비공식 엔드포인트가 봇을 차단한다(spec 2.4)
     ("비트코인", "btc", "close"),
     ("금", "gold", "close"),
     ("WTI", "wti", "close"),
-    ("오라클", "oracle", "close"),
     ("엔비디아", "nvidia", "close"),
+    ("오라클", "oracle", "close"),
 ]
 
 # 금리는 bp 단위로 읽으므로 소수 3자리, 순매수는 백만원 정수. 나머지는 2자리.

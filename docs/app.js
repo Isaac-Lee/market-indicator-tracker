@@ -18,24 +18,42 @@ const MA_FALLBACK = "#c86dd7";
 //       화면은 최근 구간만 잡는다 — 전 구간을 한 화면에 넣으면 최근 움직임이 뭉갠다.
 // 텔레그램 일일 브리핑(notify_daily.py BRIEFING_GROUPS)에 나오는 계열만 그린다.
 // data/ 에는 다른 계열도 쌓이지만 매일 눈으로 보는 것만 차트로 둔다.
-const CHARTS = [
-  { key: "kospi",         label: "코스피",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 120 },
-  { key: "kosdaq",        label: "코스닥",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 120 },
-  { key: "nasdaq",        label: "나스닥",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 100 },
-  { key: "samsung_elec",  label: "삼성전자",     type: "candle", unit: "원",   digits: 0, ma: [20, 60, 120], view: 110 },
-  { key: "sk_hynix",      label: "SK하이닉스",   type: "candle", unit: "원",   digits: 0, ma: [20, 60, 120], view: 110 },
-  { key: "nvidia",        label: "엔비디아",     type: "candle", unit: "$",    digits: 2, ma: [21, 60, 120], view: 100 },
-  { key: "oracle",        label: "오라클",       type: "candle", unit: "$",    digits: 2, ma: [21, 60], view: 100 },
-  { key: "usdkrw",        label: "원달러",       type: "candle", unit: "원",   digits: 2, ma: [5, 20, 60], view: 130 },
-  { key: "usdjpy",        label: "달러엔",       type: "candle", unit: "엔",   digits: 2, ma: [5, 20, 60], view: 130 },
-  { key: "gold",          label: "금",           type: "candle", unit: "$",    digits: 1,
-    ma: [5, 20, 60, 120], extras: ["ichimoku", "macd", "rsi"], view: 100 },
-  { key: "wti",           label: "WTI 원유",     type: "candle", unit: "$",    digits: 2,
-    ma: [5, 20, 60, 120], extras: ["macd", "rsi"], view: 120 },
-  { key: "ktb3y",         label: "국고채 3년",   type: "line",   unit: "%",    digits: 3, ma: [4, 12, 26, 52], view: 157 },
-  { key: "ust10y",        label: "미국채 10년",  type: "line",   unit: "%",    digits: 3, ma: [20, 60, 120], view: 750 },
-  { key: "investor_flow", label: "주체별 순매수", type: "flow",   unit: "백만원", digits: 0, view: 105 },
+// 섹터 순서가 곧 통합 뷰의 행 순서다. 한 섹터는 한 행을 통째로 쓰고, 그 안의 차트들이
+// 폭을 똑같이 나눠 갖는다 — 섹터마다 개수가 달라도 행의 총 폭은 같다.
+const SECTORS = [
+  { title: "수급", charts: [
+    { key: "investor_flow", label: "주체별 순매수", type: "flow",   unit: "백만원", digits: 0, view: 105 },
+  ]},
+  { title: "지수", charts: [
+    { key: "kospi",         label: "코스피",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 120 },
+    { key: "kosdaq",        label: "코스닥",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 120 },
+    { key: "nasdaq",        label: "나스닥",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 100 },
+  ]},
+  { title: "종목", charts: [
+    { key: "samsung_elec",  label: "삼성전자",     type: "candle", unit: "원",   digits: 0, ma: [20, 60, 120], view: 110 },
+    { key: "sk_hynix",      label: "SK하이닉스",   type: "candle", unit: "원",   digits: 0, ma: [20, 60, 120], view: 110 },
+    { key: "nvidia",        label: "엔비디아",     type: "candle", unit: "$",    digits: 2, ma: [21, 60, 120], view: 100 },
+    { key: "oracle",        label: "오라클",       type: "candle", unit: "$",    digits: 2, ma: [21, 60], view: 100 },
+  ]},
+  { title: "환율", charts: [
+    { key: "usdkrw",        label: "원달러",       type: "candle", unit: "원",   digits: 2, ma: [5, 20, 60], view: 130 },
+    { key: "usdjpy",        label: "달러엔",       type: "candle", unit: "엔",   digits: 2, ma: [5, 20, 60], view: 130 },
+  ]},
+  { title: "원자재·코인", charts: [
+    { key: "gold",          label: "금",           type: "candle", unit: "$",    digits: 1,
+      ma: [5, 20, 60, 120], extras: ["ichimoku", "macd", "rsi"], view: 100 },
+    { key: "wti",           label: "WTI 원유",     type: "candle", unit: "$",    digits: 2,
+      ma: [5, 20, 60, 120], extras: ["macd", "rsi"], view: 120 },
+    { key: "btc",           label: "비트코인",     type: "candle", unit: "$",    digits: 0,
+      ma: [20, 60, 120], extras: ["rsi"], view: 120 },
+  ]},
+  { title: "금리", charts: [
+    { key: "ktb3y",         label: "국고채 3년",   type: "line",   unit: "%",    digits: 3, ma: [4, 12, 26, 52], view: 157 },
+    { key: "ust10y",        label: "미국채 10년",  type: "line",   unit: "%",    digits: 3, ma: [20, 60, 120], view: 750 },
+  ]},
 ];
+
+const CHARTS = SECTORS.flatMap(s => s.charts);
 
 const FLOW_LINES = [
   { col: "foreign_cum",     name: "외국인", color: "#e0504a", width: 2 },
@@ -309,12 +327,27 @@ function render(tabKey) {
 
   const app = document.getElementById("app");
   app.innerHTML = "";
-  const grid = document.createElement("div");
-  grid.className = tabKey === "all" ? "grid" : "grid single";
-  app.appendChild(grid);
 
-  const specs = tabKey === "all" ? CHARTS : CHARTS.filter(c => c.key === tabKey);
-  for (const spec of specs) grid.appendChild(buildCard(spec, tabKey !== "all"));
+  if (tabKey === "all") {
+    for (const sector of SECTORS) {
+      const heading = document.createElement("h2");
+      heading.className = "sector";
+      heading.textContent = sector.title;
+      app.appendChild(heading);
+
+      // 한 섹터 = 한 행. 카드가 flex: 1 이라 개수가 달라도 행 전체 폭은 같다.
+      const row = document.createElement("div");
+      row.className = "row";
+      app.appendChild(row);
+      for (const spec of sector.charts) row.appendChild(buildCard(spec, false));
+    }
+  } else {
+    const row = document.createElement("div");
+    row.className = "row";
+    app.appendChild(row);
+    const spec = CHARTS.find(c => c.key === tabKey);
+    if (spec) row.appendChild(buildCard(spec, true));
+  }
 
   for (const btn of document.querySelectorAll("nav button")) {
     btn.classList.toggle("active", btn.dataset.key === tabKey);

@@ -90,13 +90,30 @@ main {
   padding: 20px;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 16px;
+.sector {
+  font-size: 0.8rem;
+  font-weight: 620;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  margin: 22px 0 8px;
 }
 
-.grid.single { grid-template-columns: 1fr; }
+.sector:first-child { margin-top: 0; }
+
+/* 한 섹터가 한 행. 카드가 flex: 1 1 0 이라 개수가 3개든 4개든 행 전체 폭은 같다. */
+.row {
+  display: flex;
+  gap: 16px;
+  align-items: start;
+}
+
+.row > .card { flex: 1 1 0; min-width: 0; }
+
+/* 좁은 화면에서 4개를 한 줄에 넣으면 캔들이 뭉갠다 — 그때만 줄바꿈을 허용한다. */
+@media (max-width: 1000px) {
+  .row { flex-wrap: wrap; }
+  .row > .card { flex: 1 1 320px; }
+}
 
 .card {
   background: var(--panel);

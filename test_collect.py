@@ -128,19 +128,20 @@ def test_summary_line_is_one_line():
     assert "\n" not in summary_line(19, many)
 
 
-def test_snapshot_tables_match_claude_md():
-    """항목 수와 순서가 CLAUDE.md의 나열과 같아야 한다."""
-    from collect import SNAPSHOT_KR, SNAPSHOT_US
-    assert len(SNAPSHOT_KR) == 11, len(SNAPSHOT_KR)
-    assert len(SNAPSHOT_US) == 13, len(SNAPSHOT_US)   # 오라클·엔비디아 추가분 포함
+def test_snapshot_tables_are_consistent():
+    """스냅샷 표에 잡히는 계열은 전부 실제로 수집하는 계열이어야 한다.
+
+    항목 수·순서를 그대로 박아두면 표를 손볼 때마다 테스트만 깨지고 잡히는 버그는
+    없다. 정말 막고 싶은 것은 SPEC에 없는 계열을 표에 적어서 매일 '미확인'이 뜨는 쪽이다.
+    """
+    from collect import SNAPSHOT_KR, SNAPSHOT_US, SPEC
     assert [l for l, _, _ in SNAPSHOT_KR][:2] == ["KOSPI", "KOSDAQ"]
-    assert [l for l, _, _ in SNAPSHOT_US][:4] == ["S&P 500", "나스닥", "다우", "러셀 2000"]
-    # Fear & Greed는 수집하지 않으므로 계열 이름이 비어 있다
-    assert dict((l, n) for l, n, _ in SNAPSHOT_US)["Fear & Greed"] == ""
-    # 수집 대상 계열은 전부 SPEC에 있어야 한다
-    from collect import SPEC
     for _, name, _ in SNAPSHOT_KR + SNAPSHOT_US:
         assert name == "" or name in SPEC, name
+    # 같은 (계열, 열)이 두 표에 겹치면 스냅샷에 같은 줄이 두 번 나온다.
+    # investor_flow 는 열이 달라(외국인/기관/개인) 계열 이름만으로는 중복이 아니다.
+    cells = [(n, c) for _, n, c in SNAPSHOT_KR + SNAPSHOT_US if n]
+    assert len(cells) == len(set(cells)), cells
 
 
 def test_series_pair_picks_the_row_on_or_before_the_date():
