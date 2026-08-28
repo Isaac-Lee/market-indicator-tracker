@@ -1,4 +1,6 @@
-<h1 align="center">지표추적자</h1>
+<p align="center">
+  <img src="docs/logo.png" alt="지표추적자" width="180">
+</p>
 
 <p align="center">
   매일 장 마감 뒤 시장 지표를 스스로 모아, 캔들차트 웹 대시보드에 그리고 텔레그램으로 보낸다.<br>
@@ -240,7 +242,8 @@ python build_dashboard.py    # data/*.csv -> docs/data.json
 | `docs/indicators.js` | 이동평균·MACD·RSI·일목균형표 계산 |
 | `docs/style.css` | 다크/라이트 두 벌 색과 반응형 |
 | `docs/data.json` | `build_dashboard.py`가 만든 데이터 (커밋됨) |
-| `docs/icon.svg` | 파비콘 겸 헤더 로고 |
+| `docs/icon.svg` | 파비콘 겸 헤더 로고 (같은 모티프를 선으로 단순화한 것) |
+| `docs/logo.png` | 이 문서 맨 위의 로고 |
 | `docs/screenshots/` | 이 문서에 붙는 화면 사진. 화면이 바뀌면 다시 찍는다 |
 
 **보는 방법**
