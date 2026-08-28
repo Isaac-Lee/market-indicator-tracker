@@ -5,10 +5,13 @@
 """
 import json
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
 import collect
+
+KST = ZoneInfo("Asia/Seoul")
 
 ROOT = Path(__file__).resolve().parent
 DOCS = ROOT / "docs"
@@ -24,7 +27,7 @@ def main():
         df["date"] = df["date"].dt.strftime("%Y-%m-%d")
         series[name] = json.loads(df.to_json(orient="records"))
 
-    payload = {"generated": pd.Timestamp.now().isoformat(), "series": series}
+    payload = {"generated": pd.Timestamp.now(tz=KST).isoformat(), "series": series}
     out_path = DOCS / "data.json"
     out_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     print(f"생성: {out_path} ({len(series)}개 계열)")

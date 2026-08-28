@@ -16,7 +16,10 @@
     <h1>지표추적자</h1>
     <span id="generated"></span>
   </div>
+  <!-- 넓은 화면은 nav(전부 펼쳐서 보임), 좁은 화면은 picker(드롭다운). 둘 다 같은
+       data-tab 을 쓰므로 선택 상태를 한 곳에서 갱신한다. -->
   <nav id="tabs"></nav>
+  <div id="picker" class="picker"></div>
 </header>
 
 <main id="app"></main>

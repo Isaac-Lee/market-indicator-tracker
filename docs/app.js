@@ -373,39 +373,163 @@ function render(tab) {
     if (spec) row.appendChild(buildCard(spec, true));
   }
 
-  for (const btn of document.querySelectorAll("nav button")) {
+  // nav 와 picker 가 같은 tab 을 가리키므로 선택 표시는 한 번에 갱신한다.
+  for (const btn of document.querySelectorAll("[data-tab]")) {
     btn.classList.toggle("active", btn.dataset.tab === tab);
   }
+  markPicker(tab);
+  closePicker();
   location.hash = tab;
 }
 
-function buildTabs() {
-  const nav = document.getElementById("tabs");
+/* ------------------------------------------------------------ 선택 UI */
 
-  const add = (parent, tab, label, cls) => {
-    const btn = document.createElement("button");
-    btn.textContent = label;
-    btn.dataset.tab = tab;
-    if (cls) btn.className = cls;
-    btn.onclick = () => render(tab);
-    parent.appendChild(btn);
-    return btn;
-  };
+/** 그 탭이 속한 섹터. "all" 은 어디에도 속하지 않는다. */
+const sectorOf = tab => SECTORS.find(
+  s => sectorTab(s.title) === tab || s.charts.some(c => c.id === tab));
 
-  add(nav, "all", "통합", "sector-btn");
-  for (const sector of SECTORS) {
-    // 섹터 버튼이 그 섹터의 지표 버튼들을 이끈다. 묶음마다 세로선으로 끊어서
-    // 어느 지표가 어느 섹터에 속하는지 탭 줄만 보고도 알 수 있게 한다.
-    const group = document.createElement("div");
-    group.className = "tab-group";
-    nav.appendChild(group);
-    add(group, sectorTab(sector.title), sector.title, "sector-btn");
-    for (const spec of sector.charts) {
-      add(group, spec.id, (spec.icon ? spec.icon + " " : "") + spec.label);
-    }
-  }
+const tabLabel = tab => {
+  if (tab === "all") return "통합";
+  const sector = SECTORS.find(s => sectorTab(s.title) === tab);
+  if (sector) return sector.title + " 전체";
+  const spec = CHARTS.find(c => c.id === tab);
+  return spec ? (spec.icon ? spec.icon + " " : "") + spec.label : "통합";
+};
+
+/** 접혀 있어도 무엇을 보고 있는지 알 수 있게 가운데에 적어 둔다. 통합일 때도
+ *  비우지 않는다 — 빈칸이면 표시가 없는 것인지 아무것도 안 고른 것인지 모른다. */
+function markPicker(tab) {
+  const current = document.querySelector(".picker-current");
+  if (!current) return;
+  current.textContent = tab === "all" ? "모두 보는 중" : `${tabLabel(tab)} 보는 중`;
 }
 
+function closePicker() {
+  const picker = document.getElementById("picker");
+  if (!picker) return;
+  picker.classList.remove("open");
+  const burger = picker.querySelector(".burger");
+  if (burger) burger.setAttribute("aria-expanded", "false");
+}
+
+function makeButton(tab, label, cls) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.textContent = label;
+  btn.dataset.tab = tab;
+  if (cls) btn.className = cls;
+  btn.onclick = () => render(tab);
+  return btn;
+}
+
+const chartLabel = spec => (spec.icon ? spec.icon + " " : "") + spec.label;
+
+/** 스크롤 위치에 따라 좌우 화살표를 켜고 끈다. 양쪽 다 없으면 아예 감춘다. */
+function markScrollEdges(shell, scroller) {
+  const max = scroller.scrollWidth - scroller.clientWidth;
+  shell.classList.toggle("at-start", scroller.scrollLeft <= 2);
+  shell.classList.toggle("at-end", scroller.scrollLeft >= max - 2);
+  shell.classList.toggle("no-scroll", max <= 2);
+}
+
+function buildTabs() {
+  // ---- 넓은 화면: 한 줄. 통합만 왼쪽에 고정하고 섹터는 좌우로 민다.
+  const nav = document.getElementById("tabs");
+  nav.appendChild(makeButton("all", "통합", "sector-btn all-btn"));
+
+  const shell = document.createElement("div");
+  shell.className = "tab-shell";
+  nav.appendChild(shell);
+
+  const scroller = document.createElement("div");
+  scroller.className = "tab-scroll";
+  shell.appendChild(scroller);
+
+  for (const sector of SECTORS) {
+    // 섹터 버튼이 그 섹터의 지표 버튼들을 이끈다. 묶음 사이를 세로선으로 끊어서
+    // 어느 지표가 어느 섹터에 속하는지 줄만 보고도 알 수 있게 한다.
+    const group = document.createElement("div");
+    group.className = "tab-group";
+    group.appendChild(makeButton(sectorTab(sector.title), sector.title, "sector-btn"));
+    for (const spec of sector.charts) {
+      group.appendChild(makeButton(spec.id, chartLabel(spec)));
+    }
+    scroller.appendChild(group);
+  }
+
+  // 화살표는 표시이자 버튼이다. 누르면 화면 폭의 4/5 만큼 민다.
+  const arrow = (dir, glyph) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `tab-arrow tab-arrow-${dir}`;
+    btn.setAttribute("aria-label", dir === "left" ? "이전 지표" : "다음 지표");
+    btn.textContent = glyph;
+    btn.onclick = () => scroller.scrollBy({
+      left: (dir === "left" ? -1 : 1) * scroller.clientWidth * 0.8,
+      behavior: "smooth",
+    });
+    shell.appendChild(btn);
+    return btn;
+  };
+  arrow("left", "‹");
+  arrow("right", "›");
+
+  const syncEdges = () => markScrollEdges(shell, scroller);
+  scroller.addEventListener("scroll", syncEdges, { passive: true });
+  window.addEventListener("resize", syncEdges);
+  syncEdges();
+
+  // ---- 좁은 화면: 햄버거 하나로 접는다. 23개를 어떤 식으로 늘어놓아도
+  // 화면 위쪽을 통째로 먹거나 옆으로 숨는다.
+  const picker = document.getElementById("picker");
+
+  // 통합은 늘 왼쪽에 두고 눈에 띄게 칠해 둔다 — 어디까지 파고들었든 돌아올 자리.
+  picker.appendChild(makeButton("all", "통합", "picker-home"));
+
+  const current = document.createElement("span");
+  current.className = "picker-current";
+  picker.appendChild(current);
+
+  const burger = document.createElement("button");
+  burger.type = "button";
+  burger.className = "burger";
+  burger.setAttribute("aria-label", "지표 선택");
+  burger.setAttribute("aria-expanded", "false");
+  burger.innerHTML = "<span></span><span></span><span></span>";
+  burger.onclick = () => {
+    const open = picker.classList.toggle("open");
+    burger.setAttribute("aria-expanded", String(open));
+  };
+  picker.appendChild(burger);
+
+  const panel = document.createElement("div");
+  panel.className = "picker-panel";
+  panel.appendChild(makeButton("all", "통합", "picker-item picker-lead"));
+  for (const sector of SECTORS) {
+    const group = document.createElement("div");
+    group.className = "picker-group";
+    group.appendChild(
+      makeButton(sectorTab(sector.title), sector.title + " 전체", "picker-item picker-lead"));
+    const list = document.createElement("div");
+    list.className = "picker-list";
+    for (const spec of sector.charts) {
+      list.appendChild(makeButton(spec.id, chartLabel(spec), "picker-item"));
+    }
+    group.appendChild(list);
+    panel.appendChild(group);
+  }
+  picker.appendChild(panel);
+
+  // 바깥을 누르거나 Esc 를 누르면 닫는다. 열어둔 채로 스크롤하면 시야를 가린다.
+  document.addEventListener("pointerdown", e => {
+    // target 이 늘 Element 인 것은 아니다(document, 텍스트 노드 등).
+    const el = e.target instanceof Element ? e.target : null;
+    if (!el || !el.closest("#picker")) closePicker();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") closePicker();
+  });
+}
 function isKnownTab(tab) {
   return tab === "all"
     || SECTORS.some(s => sectorTab(s.title) === tab)
@@ -415,7 +539,7 @@ function isKnownTab(tab) {
 async function main() {
   DATA = await (await fetch("data.json")).json();
   document.getElementById("generated").textContent =
-    "갱신 " + DATA.generated.slice(0, 16).replace("T", " ");
+    "갱신: " + DATA.generated.slice(0, 16).replace("T", " ") + " KST";
   buildTabs();
   const initial = decodeURIComponent(location.hash.slice(1));
   render(isKnownTab(initial) ? initial : "all");

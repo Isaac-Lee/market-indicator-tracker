@@ -110,6 +110,9 @@ def send_telegram(text):
     if not (token and chat_id):
         print("[건너뜀] TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID 없음", file=sys.stderr)
         return
+    if os.environ.get("DRY_RUN") == "1":
+        print(f"[DRY-RUN] 텔레그램 미전송\n{text}")
+        return
     requests.post(
         f"https://api.telegram.org/bot{token}/sendMessage",
         data={"chat_id": chat_id, "text": text, "parse_mode": "Markdown"},
@@ -127,7 +130,11 @@ def main():
     # 매번 오는 것을 막으려는 것이라, 예약 실행에서는 켜지 않는다.
     extra = ["--skip-kis"] if os.environ.get("SKIP_KIS") == "1" else []
     rc1, out1 = run("collect.py", "--daily", *extra)
-    rc2, out2 = (run("upload_sheets.py", "--data") if rc1 == 0 else (rc1, "collect 실패로 건너뜀"))
+    # DRY_RUN=1 이면 구글시트도 건드리지 않는다(빌드 테스트가 외부 상태를 바꾸면 안 됨).
+    if os.environ.get("DRY_RUN") == "1":
+        rc2, out2 = (0, "[DRY-RUN] 구글시트 업로드 건너뜀") if rc1 == 0 else (rc1, "collect 실패로 건너뜀")
+    else:
+        rc2, out2 = (run("upload_sheets.py", "--data") if rc1 == 0 else (rc1, "collect 실패로 건너뜀"))
 
     if rc1 == 0 and rc2 == 0:
         text = build_briefing()

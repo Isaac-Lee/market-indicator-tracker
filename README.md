@@ -1,9 +1,43 @@
-# Market Indicator Tracker
+<h1 align="center">지표추적자</h1>
 
-어둠의 알상무단을 위한 지표추적자 (Market Indicator Tracker)
+<p align="center">
+  매일 장 마감 뒤 시장 지표를 스스로 모아, 캔들차트 웹 대시보드에 그리고 텔레그램으로 보낸다.<br>
+  서버는 두지 않는다 — GitHub Actions가 수집하고 GitHub Pages가 띄운다.
+</p>
 
-한국투자증권 Open API / ECOS / FRED / 야후 파이낸스로 시장 지표를 로컬에 수집하고, 구글 시트에 올릴
-엑셀 파일을 만드는 도구.
+<p align="center">
+  <b><a href="https://isaac-lee.github.io/market-indicator-tracker/">➡️ 지표추적자 열기</a></b>
+</p>
+
+<img src="docs/screenshots/desktop-overview.png" alt="통합 뷰 — 섹터별로 늘어놓은 캔들차트" width="100%">
+
+<p align="center"><i>통합 뷰 — 섹터(지수·종목·환율·원자재/코인·금리·수급)마다 한 행</i></p>
+
+<img src="docs/screenshots/desktop-gold.png" alt="금 — 캔들 + 이동평균 + 일목균형표 + MACD + RSI" width="100%">
+
+<p align="center"><i>개별 지표는 크게 한 장 — 금은 이동평균·일목균형표에 MACD·RSI까지</i></p>
+
+<img src="docs/screenshots/mobile.png" alt="휴대폰 화면 — 통합 뷰와 햄버거 메뉴" width="100%">
+
+<p align="center"><i>휴대폰에서는 선택바가 햄버거로 접히고 차트는 한 열에 한 장씩</i></p>
+
+---
+
+## 어떻게 돌아가나
+
+| | 하는 일 | 어디서 |
+|---|---|---|
+| **수집** | KIS·ECOS·FRED·야후에서 21개 계열을 받아 `data/*.csv`에 누적 | [`collect.py`](collect.py) |
+| **대시보드** | CSV → `docs/data.json` → 캔들차트 웹페이지 | [`build_dashboard.py`](build_dashboard.py), [`docs/`](docs/) |
+| **알림** | 수집·업로드를 순서대로 돌리고 결과를 텔레그램으로 | [`notify_daily.py`](notify_daily.py) |
+
+평일 16:10 KST에 [GitHub Actions](.github/workflows/daily.yml)가 셋을 차례로 돌리고
+갱신된 CSV를 저장소에 다시 커밋한다. 구글 시트 업로드도 그대로 남아 있다(5절).
+
+- **통합 뷰**: 전 지표를 섹터별로 한 화면에.
+- **개별 지표**: 크게 한 장. 금·WTI·비트코인은 MACD와 RSI가 아래 칸에 붙고,
+  금에는 일목균형표까지 겹친다.
+- **캔들 호버**: 그 날짜의 시가·고가·저가·종가와 이동평균 값이 함께 뜬다.
 
 ## 1. 설치 / 인증
 
@@ -31,15 +65,19 @@ KIS는 토큰 발급을 1분에 1회로 제한하므로 캐시를 지우지 말 
 
 ## 2. 실행
 
+평소에는 GitHub Actions가 알아서 돌린다(8절). 손으로 돌릴 일이 있을 때만 쓴다.
+
 ```bash
-python collect.py --daily        # 오늘치 추가 (매일)
-python upload_sheets.py --data   # 구글 시트 반영
+python notify_daily.py        # 수집 + 구글시트 + 텔레그램까지 한 번에 (Actions가 부르는 것)
+python build_dashboard.py     # data/*.csv -> docs/data.json (대시보드 갱신)
 ```
 
 ```bash
 python collect.py --init      # 과거치 전체 수집 + market_data.xlsx 생성 (최초 1회)
 python collect.py --daily     # 최근 10영업일 갱신 (매일)
+python collect.py --backfill 1825   # 전 계열 5년치 다시 받아 CSV에 합침 (6절)
 python collect.py --excel     # data/*.csv -> market_data.xlsx 재생성
+python upload_sheets.py --data      # 구글 시트 반영
 python import_ecos.py "시장금리(일별)_04000531.xlsx"   # ECOS 엑셀 -> data/ktb3y.csv
 python test_collect.py        # 네트워크 없이 로직 검증
 ```
@@ -47,6 +85,12 @@ python test_collect.py        # 네트워크 없이 로직 검증
 ```bash
 python collect.py --snapshot              # 오늘 기준 CLAUDE.md 형식 스냅샷 표
 python collect.py --snapshot 2026-08-21   # 특정 날짜
+```
+
+대시보드를 로컬에서 보려면 `docs/`를 그냥 띄우면 된다(빌드 도구 없음).
+
+```bash
+python build_dashboard.py && python -m http.server 8420 --directory docs
 ```
 
 `--daily`/`--init`은 마지막 줄에 요약을 찍는다: `21계열 갱신 · stale 0`.
@@ -63,29 +107,36 @@ python collect.py --snapshot 2026-08-21   # 특정 날짜
 기간·주기는 [`collect.py`](collect.py)의 `SPEC` 한 곳에서 정한다. 수집 범위와 출력 가공(기간 자르기 +
 주간 리샘플)이 모두 이 값을 따르므로 범위를 바꾸려면 `SPEC`만 고치면 된다.
 
-| 시트 | 지표 | 출처 (TR ID) | 주기 | 기간 | 행수 |
-|---|---|---|---|---|---|
-| `kospi` | 코스피 OHLC | 국내주식업종기간별시세 `FHKUP03500100` | 일 | 6개월 | 122 |
-| `kosdaq` | 코스닥 OHLC | 동일 (`1001`) | 일 | 6개월 | 122 |
-| `samsung_elec` | 삼성전자 OHLC | 국내주식기간별시세 `FHKST03010100` | 일 | 6개월 | 122 |
-| `sk_hynix` | SK하이닉스 OHLC | 동일 (`000660`) | 일 | 6개월 | 122 |
-| `wti` | WTI 원유 선물 OHLC | 해외선물 `HHDFC55020100`, 실패 시 **야후 `CL=F`** | 일 | 6개월 | 126 |
-| `usdkrw` | 원달러(원/달러 KMB) | 해외 기간별시세 `FHKST03030100` (X/`FX@KRW`) | 일 | 1년 | 243 |
-| `usdjpy` | 달러엔(엔/달러) | 동일 (X/`FX@JPY`) | 일 | 1년 | 250 |
-| `ust10y` | 미국채 10년 금리 | **FRED `DGS10`** (KIS 미지원) | 일 | 3년 | - |
-| `ktb3y` | 국고채 3년 금리 | **한국은행 ECOS** `817Y002`/`010200000` | 주(금) | 3년 | 157 |
-| `investor_flow` | 주체별 순매수(외국인/기관/개인/연기금/투신) | 시장별 투자자매매동향(일별) `FHPTJ04040000` | 주(금) | 2년 | 105 |
-| `sp500` | S&P 500 OHLC | 야후 `^GSPC` | 일 | 6개월 | - |
-| `nasdaq` | 나스닥 OHLC | 야후 `^IXIC` | 일 | 6개월 | - |
-| `dow` | 다우 OHLC | 야후 `^DJI` | 일 | 6개월 | - |
-| `russell2000` | 러셀 2000 OHLC | 야후 `^RUT` | 일 | 6개월 | - |
-| `dxy` | 달러지수 OHLC | 야후 `DX-Y.NYB` | 일 | 6개월 | - |
-| `btc` | 비트코인 OHLC | 야후 `BTC-USD` | 일 | 6개월 | - |
-| `gold` | 금 선물 OHLC | 야후 `GC=F` | 일 | 6개월 | - |
-| `ust2y` | 미국채 2년 금리 | FRED `DGS2` | 일 | 3년 | - |
-| `ktb10y` | 국고채 10년 금리 | ECOS `817Y002`/`010210000` | 주(금) | 3년 | - |
-| `oracle` | 오라클 OHLC | 야후 `ORCL` | 일 | 6개월 | - |
-| `nvidia` | 엔비디아 OHLC | 야후 `NVDA` | 일 | 6개월 | - |
+계열 이름은 `data/<계열>.csv`, 구글 시트 탭 이름, `docs/data.json`의 키로 그대로 쓰인다.
+**굵게** 표시한 것이 웹 대시보드에 그려지는 계열이다.
+
+| 계열 | 지표 | 출처 (TR ID) | 주기 | 기간 |
+|---|---|---|---|---|
+| **`kospi`** | 코스피 OHLC | 국내주식업종기간별시세 `FHKUP03500100` | 일 | 6개월 |
+| **`kosdaq`** | 코스닥 OHLC | 동일 (`1001`) | 일 | 6개월 |
+| **`samsung_elec`** | 삼성전자 OHLC | 국내주식기간별시세 `FHKST03010100` | 일 | 6개월 |
+| **`sk_hynix`** | SK하이닉스 OHLC | 동일 (`000660`) | 일 | 6개월 |
+| **`wti`** | WTI 원유 선물 OHLC | 해외선물 `HHDFC55020100`, 실패 시 **야후 `CL=F`** | 일 | 6개월 |
+| **`usdkrw`** | 원달러(원/달러 KMB) | 해외 기간별시세 `FHKST03030100` (X/`FX@KRW`) | 일 | 1년 |
+| **`usdjpy`** | 달러엔(엔/달러) | 동일 (X/`FX@JPY`) | 일 | 1년 |
+| **`ust10y`** | 미국채 10년 금리 | **FRED `DGS10`** (KIS 미지원) | 일 | 3년 |
+| **`ktb3y`** | 국고채 3년 금리 | **한국은행 ECOS** `817Y002`/`010200000` | 주(금) | 3년 |
+| **`investor_flow`** | 주체별 순매수(외국인/기관/개인/연기금/투신) | 시장별 투자자매매동향(일별) `FHPTJ04040000` | 주(금) | 2년 |
+| `sp500` | S&P 500 OHLC | 야후 `^GSPC` | 일 | 6개월 |
+| **`nasdaq`** | 나스닥 OHLC | 야후 `^IXIC` | 일 | 6개월 |
+| `dow` | 다우 OHLC | 야후 `^DJI` | 일 | 6개월 |
+| `russell2000` | 러셀 2000 OHLC | 야후 `^RUT` | 일 | 6개월 |
+| `dxy` | 달러지수 OHLC | 야후 `DX-Y.NYB` | 일 | 6개월 |
+| **`btc`** | 비트코인 OHLC | 야후 `BTC-USD` | 일 | 6개월 |
+| **`gold`** | 금 선물 OHLC | 야후 `GC=F` | 일 | 6개월 |
+| `ust2y` | 미국채 2년 금리 | FRED `DGS2` | 일 | 3년 |
+| `ktb10y` | 국고채 10년 금리 | ECOS `817Y002`/`010210000` | 주(금) | 3년 |
+| **`oracle`** | 오라클 OHLC | 야후 `ORCL` | 일 | 6개월 |
+| **`nvidia`** | 엔비디아 OHLC | 야후 `NVDA` | 일 | 6개월 |
+
+위 표의 **기간은 `SPEC` 값**(구글 시트·엑셀에 내보내는 범위)이다. 웹 대시보드가 보여주는
+구간은 이와 별개로 `docs/app.js`의 `view`가 정한다(예: 금·비트코인 1년, WTI 6개월).
+CSV에는 그보다 긴 데이터가 쌓여 있어야 이동평균이 화면 왼쪽에서 잘리지 않는다 — 6절 참고.
 
 CSV에는 수집한 원본(일별)을 그대로 쌓고, 기간 자르기·주간 집계는 출력 시점(`for_output`)에 한다.
 범위를 다시 늘려도 이미 받아둔 데이터는 버려지지 않는다.
@@ -173,7 +224,10 @@ INVESTOR_MAP = {
 돌린다. 자체 cron이 필요하면 5절 끝의 "매일 갱신에 붙이기" 참고 (Actions와 동시에
 쓰지 말 것).
 
-## 5. 구글 시트 업로드 + 대시보드
+## 5. 구글 시트 업로드 (선택)
+
+웹 대시보드(6절)와 별개로, 같은 데이터를 구글 시트에도 올린다.
+시트 쪽 차트가 익숙하면 쓰고, 아니면 이 절은 건너뛰어도 된다.
 
 대상 시트 ID는 `upload_sheets.py`의 `SPREADSHEET_ID` 상수에서 바꾼다.
 
@@ -249,34 +303,59 @@ python upload_sheets.py --ranges   # 데이터에 맞는 최솟값/최댓값 출
 `/path/to/market-indicator-tracker`는 저장소를 clone한 실제 경로로 바꾼다.
 차트는 데이터 범위를 행 수까지 잡아두므로, 행이 늘면 `--charts`를 가끔(월 1회 정도) 다시 돌리면 된다.
 
-## 6. 정적 대시보드 (GitHub Pages)
+## 6. 웹 대시보드 (GitHub Pages)
 
 ```bash
 python build_dashboard.py    # data/*.csv -> docs/data.json
 ```
 
 `docs/index.html`이 `docs/data.json`을 읽어 [Lightweight Charts](https://tradingview.github.io/lightweight-charts/)로
-그린다. `docs/`를 GitHub Pages로 게시하면(설정 → Pages → 브랜치/`docs` 폴더)
-별도 서버 없이 정적으로 뜬다.
+그린다. 빌드 도구도 프레임워크도 없다 — `docs/`를 GitHub Pages로 게시하면
+(설정 → Pages → 브랜치/`docs` 폴더) 별도 서버 없이 정적으로 뜬다.
 
-- 위쪽 탭으로 지표를 하나씩 보거나 **통합**에서 전부 한 화면에 놓고 본다.
-  선택한 탭은 URL 해시에 남아 새로고침해도 유지된다.
-- 통합 뷰는 섹터(지수/종목/환율/원자재·코인/금리/수급)마다 한 행을 쓰고, 그 안의
-  차트가 폭을 똑같이 나눈다 — 개수가 2개든 4개든 행의 총 폭은 같다. 섹터 순서는
-  `docs/app.js`의 `SECTORS`가 정한다.
-- 차트의 확대·이동은 꺼 두었다. 페이지를 스크롤하다 커서가 차트를 지나면 휠이
-  확대로 먹혀서 보던 구간이 멋대로 바뀌기 때문이다. 구간은 `view`로만 정한다.
-- 폭에 따라 한 행에 4장 → 2장 → 1장으로 접힌다(1100px, 760px). 휴대폰에서는
-  한 열에 한 장씩 세로로 쌓인다 — 두 장만 나란히 놓아도 캔들이 읽히지 않는다.
+| 파일 | 하는 일 |
+|---|---|
+| `docs/index.html` | 뼈대. 헤더 + 선택바 + 차트 자리 |
+| `docs/app.js` | 차트 정의(`SECTORS`)와 그리기·선택바 전부 |
+| `docs/indicators.js` | 이동평균·MACD·RSI·일목균형표 계산 |
+| `docs/style.css` | 다크/라이트 두 벌 색과 반응형 |
+| `docs/data.json` | `build_dashboard.py`가 만든 데이터 (커밋됨) |
+| `docs/icon.svg` | 파비콘 겸 헤더 로고 |
+
+**보는 방법**
+
+- **통합**에서 전부 한 화면에 놓거나, 섹터 버튼으로 그 섹터만, 지표 버튼으로 하나만 본다.
+  고른 것은 URL 해시에 남아 새로고침해도 유지된다.
+- 통합 뷰는 섹터마다 한 행을 쓰고 그 안의 차트가 폭을 똑같이 나눈다 — 개수가 2개든
+  4개든 행의 총 폭은 같다. 섹터 순서는 `docs/app.js`의 `SECTORS`가 정한다.
 - 금리를 뺀 나머지는 캔들. 캔들에 마우스를 올리면 그 날짜의 시가·고가·저가·종가와
   이동평균 값이 뜬다.
-- 보조지표는 `docs/app.js`의 `CHARTS` 한 곳에서 정한다. `ma`는 이동평균 기간들,
-  `extras`는 `ichimoku`/`macd`/`rsi`(서브패널로 붙는다), `view`는 처음 보여줄 봉 수다.
-  계산식은 `docs/indicators.js`에 있다.
-- 카드와 탭 앞의 이모지는 텔레그램 브리핑과 같은 것을 쓴다(`CHARTS`의 `icon`).
-  기업 로고는 상표라 이미지 파일을 따로 받아 넣어야 해서 이모지로 대신했다.
-- 그리는 계열은 텔레그램 브리핑(`notify_daily.py`의 `BRIEFING_GROUPS`)과 같다.
-  `data/`에는 S&P·다우·러셀·달러지수·비트코인 등도 쌓이지만 차트로는 그리지 않는다.
+- 차트의 확대·이동은 꺼 두었다. 페이지를 스크롤하다 커서가 차트를 지나면 휠이
+  확대로 먹혀서 보던 구간이 멋대로 바뀌기 때문이다. 구간은 `view`로만 정한다.
+
+**선택바** (`>1200px` / `≤1200px` 두 벌)
+
+- 넓은 화면: 한 줄에 전부 늘어놓고 좌우로 민다. **통합만 왼쪽에 고정**되고, 그 방향에
+  더 있으면 `‹` `›`와 음영이 뜬다(화살표는 눌러서 미는 버튼이기도 하다). 끝에 닿으면
+  그쪽 화살표만 사라진다 — 계속 떠 있으면 더 있는 줄 알고 헛되이 민다.
+- 좁은 화면: 오른쪽 **햄버거**로 접고, 가운데에 "무엇을 보는 중"인지 적어 둔다.
+  23개를 어떻게 늘어놓아도 화면 위쪽을 통째로 먹거나 옆으로 숨기 때문이다.
+- 차트 카드는 폭에 따라 한 행에 4장 → 2장 → 1장으로 접힌다(1100px, 760px).
+  휴대폰에서는 한 열에 한 장씩 — 두 장만 나란히 놓아도 캔들이 읽히지 않는다.
+
+**차트 구성 바꾸기** — `docs/app.js`의 `SECTORS` 한 곳만 고치면 된다.
+
+| 키 | 뜻 |
+|---|---|
+| `type` | `candle`(OHLC) / `line`(종가만) / `flow`(누적 순매수) |
+| `ma` | 이동평균 기간들. 색은 기간별로 고정돼 차트가 달라도 같은 기간이면 같은 색 |
+| `extras` | `ichimoku`(겹쳐 그림) / `macd` / `rsi`(아래 칸으로 붙음) |
+| `view` | 처음 보여줄 봉 수 |
+| `icon` | 카드·버튼 앞 이모지. 텔레그램 브리핑과 같은 것을 쓴다 |
+
+기업 로고는 상표라 이미지 파일을 따로 받아 넣어야 해서 이모지로 대신했다.
+그리는 계열은 텔레그램 브리핑(`notify_daily.py`의 `BRIEFING_GROUPS`)과 같다 —
+`data/`에는 S&P·다우·러셀·달러지수도 쌓이지만 차트로는 그리지 않는다.
 
 `build_dashboard.py`는 기간을 자르지 않은 전체 데이터를 넘긴다
 (`output_frames(trim=False)`). 이동평균·일목균형표가 앞쪽 데이터를 먹기 때문에,
