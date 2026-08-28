@@ -23,35 +23,40 @@ PYTHON = sys.executable
 
 DASHBOARD_LINK = "https://buly.kr/2JqqPBg"   # GitHub Pages 대시보드(지표추적자)
 
-# 그룹 제목(Markdown bold): [(이모지+표시명, 계열, 열, %단위 여부), ...]
+# 그룹 제목(Markdown bold): [(이모지+표시명, 계열, 열, 소수 자릿수), ...]
+# 한 줄이 폰 화면 폭을 넘으면 뒤의 🟢/🔴만 다음 줄로 떨어져 읽기 사나워진다.
+# 이름은 짧게 두고, 자릿수는 그 지표를 실제로 읽는 단위에 맞춘다 — 원화 종목에
+# 소수점 두 자리는 아무 의미도 없으면서 여섯 글자를 잡아먹는다.
+PCT = "pct"   # 금리처럼 값 자체가 %인 계열
 BRIEFING_GROUPS = [
     ("지수", [
-        ("🇰🇷 KOSPI", "kospi", "close", False),
-        ("🇰🇷 KOSDAQ", "kosdaq", "close", False),
-        ("🇺🇸 나스닥", "nasdaq", "close", False),
+        ("🇰🇷 KOSPI", "kospi", "close", 2),
+        ("🇰🇷 KOSDAQ", "kosdaq", "close", 2),
+        ("🇺🇸 나스닥", "nasdaq", "close", 2),
     ]),
     ("종목", [
-        ("📱 삼성전자", "samsung_elec", "close", False),
-        ("💾 SK하이닉스", "sk_hynix", "close", False),
-        ("🖥 엔비디아", "nvidia", "close", False),
-        ("☁️ 오라클", "oracle", "close", False),
+        ("📱 삼성전자", "samsung_elec", "close", 0),
+        ("💾 하이닉스", "sk_hynix", "close", 0),
+        ("🖥 엔비디아", "nvidia", "close", 2),
+        ("☁️ 오라클", "oracle", "close", 2),
     ]),
     ("환율", [
-        ("💵 원달러", "usdkrw", "close", False),
-        ("💴 달러엔", "usdjpy", "close", False),
+        ("💵 원달러", "usdkrw", "close", 2),
+        ("💴 달러엔", "usdjpy", "close", 2),
     ]),
-    ("금/원유", [
-        ("🥇 금", "gold", "close", False),
-        ("🛢 WTI", "wti", "close", False),
+    ("원자재·코인", [
+        ("🥇 금", "gold", "close", 1),
+        ("🛢 WTI", "wti", "close", 2),
+        ("🪙 비트코인", "btc", "close", 0),
     ]),
     ("금리", [
-        ("🇰🇷 국고채 3년", "ktb3y", "close", True),
-        ("🇺🇸 미국채 10년", "ust10y", "close", True),
+        ("🇰🇷 국고채 3년", "ktb3y", "close", PCT),
+        ("🇺🇸 미국채 10년", "ust10y", "close", PCT),
     ]),
 ]
 
 
-def _item_line(label, name, col, is_pct, on):
+def _item_line(label, name, col, digits, on):
     path = collect.DATA / f"{name}.csv"
     df = pd.read_csv(path, parse_dates=["date"]) if path.exists() else None
     cur, prev = collect.series_pair(df, col, on)
@@ -59,9 +64,9 @@ def _item_line(label, name, col, is_pct, on):
         return f"{label} 미확인"
     diff = cur - prev
     pct = diff / prev * 100 if prev else 0.0
-    unit = "%" if is_pct else ""
+    unit, nd = ("%", 2) if digits is PCT else ("", digits)
     dot = "🟢" if diff >= 0 else "🔴"
-    return f"{label} {cur:,.2f}{unit} ({diff:+,.2f}, {pct:+.2f}%) {dot}"
+    return f"{label} {cur:,.{nd}f}{unit} ({diff:+,.{nd}f}, {pct:+.2f}%) {dot}"
 
 
 def build_briefing(on=None):
@@ -70,8 +75,8 @@ def build_briefing(on=None):
     lines = [f"📊 {on.isoformat()} 시장 브리핑", ""]
     for title, items in BRIEFING_GROUPS:
         lines.append(f"▶ *{title}*")
-        for label, name, col, is_pct in items:
-            lines.append(_item_line(label, name, col, is_pct, on))
+        for label, name, col, digits in items:
+            lines.append(_item_line(label, name, col, digits, on))
         lines.append("")
 
     flow_path = collect.DATA / "investor_flow.csv"
