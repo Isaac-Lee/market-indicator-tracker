@@ -424,6 +424,20 @@ function makeButton(tab, label, cls) {
 
 const chartLabel = spec => (spec.icon ? spec.icon + " " : "") + spec.label;
 
+/** 열린 메뉴가 화면 아래로 넘치지 않게 높이를 실제로 보이는 만큼만 준다.
+ *
+ *  iOS 사파리는 주소창·제어바가 떠 있어도 vh 를 "그것들이 없을 때" 기준으로 잡아서,
+ *  70vh 로 두면 패널 아래끝이 제어바 밑에 깔린다. 스크롤을 끝까지 내려도 마지막 줄에
+ *  손가락이 닿지 않는다. visualViewport 는 지금 눈에 보이는 높이를 준다. */
+function sizePanel(panel) {
+  const view = window.visualViewport;
+  const height = view ? view.height : window.innerHeight;
+  const offset = view ? view.offsetTop : 0;
+  const top = panel.getBoundingClientRect().top;
+  const margin = 12;
+  panel.style.maxHeight = `${Math.max(200, height + offset - top - margin)}px`;
+}
+
 /** 스크롤 위치에 따라 좌우 화살표를 켜고 끈다. 양쪽 다 없으면 아예 감춘다. */
 function markScrollEdges(shell, scroller) {
   const max = scroller.scrollWidth - scroller.clientWidth;
@@ -499,6 +513,7 @@ function buildTabs() {
   burger.onclick = () => {
     const open = picker.classList.toggle("open");
     burger.setAttribute("aria-expanded", String(open));
+    if (open) sizePanel(panel);
   };
   picker.appendChild(burger);
 
@@ -519,6 +534,15 @@ function buildTabs() {
     panel.appendChild(group);
   }
   picker.appendChild(panel);
+
+  // 주소창·제어바는 스크롤하다 보면 접혔다 펴진다. 그때마다 보이는 높이가 달라지므로
+  // 열려 있는 동안 다시 재 준다.
+  const resize = () => { if (picker.classList.contains("open")) sizePanel(panel); };
+  window.addEventListener("resize", resize);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", resize);
+    window.visualViewport.addEventListener("scroll", resize);
+  }
 
   // 바깥을 누르거나 Esc 를 누르면 닫는다. 열어둔 채로 스크롤하면 시야를 가린다.
   document.addEventListener("pointerdown", e => {

@@ -292,8 +292,14 @@ nav button.all-btn { flex: 0 0 auto; padding-left: 18px; padding-right: 18px; }
   top: 100%;
   z-index: 30;
   margin-top: 4px;
-  padding: 6px;
+  /* 아래쪽은 홈 인디케이터 높이만큼 더 비운다 — 마지막 줄이 그 밑에 깔리면
+     스크롤을 끝까지 내려도 손가락이 닿지 않는다. */
+  padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+  /* iOS 는 vh 를 "툴바가 없을 때" 기준으로 잡아서, 주소창·제어바가 올라와 있으면
+     패널 아래끝이 그 밑에 깔린다. dvh 는 지금 실제로 보이는 높이를 쓴다.
+     dvh 를 모르는 브라우저는 앞줄(vh)로 떨어진다. 열 때 JS 가 한 번 더 재 준다. */
   max-height: 70vh;
+  max-height: 70dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--panel);
