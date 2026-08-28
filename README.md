@@ -376,7 +376,7 @@ https://buly.kr/2JqqPBg
 | `push` (코드 올릴 때) | X | X (`DRY_RUN`) | X |
 
 `push`는 문서만 바뀌었으면 아예 돌지 않는다(`paths-ignore`: `**.md`,
-`docs/screenshots/**`, `.gitignore`). 실행에 영향을 주지 않는 변경이라서다.
+`docs/screenshots/**`, `docs/logo.png`, `.gitignore`). 실행에 영향을 주지 않는 변경이라서다.
 
 `push`는 빌드가 깨지지 않았는지만 보는 것이라 바깥 상태를 하나도 건드리지 않는다.
 수동 실행이 KIS를 기본으로 건너뛰는 것도 같은 이유 — 손으로 여러 번 돌려보는 동안

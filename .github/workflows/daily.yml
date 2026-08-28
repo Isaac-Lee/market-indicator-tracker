@@ -9,6 +9,7 @@ on:
     paths-ignore:
       - "**.md"
       - "docs/screenshots/**"
+      - "docs/logo.png"
       - ".gitignore"
   workflow_dispatch:
     inputs:
