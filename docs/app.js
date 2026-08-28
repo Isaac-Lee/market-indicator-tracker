@@ -401,7 +401,7 @@ const tabLabel = tab => {
 function markPicker(tab) {
   const current = document.querySelector(".picker-current");
   if (!current) return;
-  current.textContent = tab === "all" ? "모두 보는 중" : `${tabLabel(tab)} 보는 중`;
+  current.textContent = tab === "all" ? "모든 지표 보는 중" : `${tabLabel(tab)} 보는 중`;
 }
 
 function closePicker() {
@@ -538,8 +538,12 @@ function isKnownTab(tab) {
 
 async function main() {
   DATA = await (await fetch("data.json")).json();
-  document.getElementById("generated").textContent =
-    "갱신: " + DATA.generated.slice(0, 16).replace("T", " ") + " KST";
+  // 숫자는 계기판처럼, 라벨은 그 옆에 흐리게. 스타일은 style.css 의 #generated.
+  const stamp = DATA.generated.slice(0, 16).replace("T", " ");
+  document.getElementById("generated").innerHTML =
+    `<span class="stamp-key">갱신</span>` +
+    `<span class="stamp-value">${stamp}</span>` +
+    `<span class="stamp-key">KST</span>`;
   buildTabs();
   const initial = decodeURIComponent(location.hash.slice(1));
   render(isKnownTab(initial) ? initial : "all");
