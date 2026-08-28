@@ -321,6 +321,7 @@ python build_dashboard.py    # data/*.csv -> docs/data.json
 | `docs/style.css` | 다크/라이트 두 벌 색과 반응형 |
 | `docs/data.json` | `build_dashboard.py`가 만든 데이터 (커밋됨) |
 | `docs/icon.svg` | 파비콘 겸 헤더 로고 |
+| `docs/screenshots/` | 이 문서에 붙는 화면 사진. 화면이 바뀌면 다시 찍는다 |
 
 **보는 방법**
 
@@ -338,10 +339,35 @@ python build_dashboard.py    # data/*.csv -> docs/data.json
 - 넓은 화면: 한 줄에 전부 늘어놓고 좌우로 민다. **통합만 왼쪽에 고정**되고, 그 방향에
   더 있으면 `‹` `›`와 음영이 뜬다(화살표는 눌러서 미는 버튼이기도 하다). 끝에 닿으면
   그쪽 화살표만 사라진다 — 계속 떠 있으면 더 있는 줄 알고 헛되이 민다.
-- 좁은 화면: 오른쪽 **햄버거**로 접고, 가운데에 "무엇을 보는 중"인지 적어 둔다.
-  23개를 어떻게 늘어놓아도 화면 위쪽을 통째로 먹거나 옆으로 숨기 때문이다.
+- 좁은 화면: 오른쪽 **햄버거**로 접고, 왼쪽에 통합 버튼, 가운데에 "무엇을 보는 중"인지
+  적어 둔다. 23개를 어떻게 늘어놓아도 화면 위쪽을 통째로 먹거나 옆으로 숨기 때문이다.
 - 차트 카드는 폭에 따라 한 행에 4장 → 2장 → 1장으로 접힌다(1100px, 760px).
   휴대폰에서는 한 열에 한 장씩 — 두 장만 나란히 놓아도 캔들이 읽히지 않는다.
+
+**햄버거 메뉴 높이** — 열 때 `visualViewport`로 "메뉴 위끝부터 지금 보이는 화면 아래끝까지"를
+재서 `max-height`에 넣는다(`sizePanel`). iOS는 `vh`를 주소창·제어바가 **없을 때** 기준으로
+잡아서, `70vh`로 두면 제어바가 올라와 있을 때 메뉴 아래쪽이 그 밑에 깔려 스크롤을 끝까지
+내려도 손가락이 닿지 않는다. 제어바는 스크롤 중 접혔다 펴지므로 열려 있는 동안 계속 다시
+잰다. CSS 쪽은 `dvh` 폴백을 두고, 아래 여백에 `env(safe-area-inset-bottom)`을 더해 마지막
+줄이 홈 인디케이터에 걸치지 않게 한다.
+
+**헤더** — 제목 줄 오른쪽 끝에 갱신 시각을 계기판처럼 놓는다. 어두운 칩 안에 고정폭
+숫자를 초록으로 옅게 발광시키고 라벨(`갱신`·`KST`)은 흐리게 눌러 숫자만 도드라지게 했다.
+칩 색은 두 테마에서 같다 — 계기판은 주변이 밝든 어둡든 제 색으로 켜져 있다.
+
+**화면을 고쳤으면 이 문서의 사진도 다시 찍는다.** 로컬 서버를 띄우고 헤드리스 크롬으로
+`docs/screenshots/`에 덮어쓴다.
+
+```bash
+python -m http.server 8420 --directory docs &
+CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+"$CHROME" --headless --disable-gpu --hide-scrollbars --virtual-time-budget=7000 \
+  --screenshot=docs/screenshots/desktop-overview.png --window-size=1440,1000 http://localhost:8420/
+```
+
+휴대폰 화면은 `--window-size=390`으로 찍히지 않는다 — macOS 크롬은 창 최소 폭이 있어
+레이아웃이 그 폭으로 잡히지 않고 잘린 그림이 나온다. 폭 390px짜리 `<iframe>`을 담은
+임시 페이지를 만들어 그 안에서 렌더한 뒤 찍는다.
 
 **차트 구성 바꾸기** — `docs/app.js`의 `SECTORS` 한 곳만 고치면 된다.
 
@@ -383,17 +409,54 @@ python notify_daily.py
 ```
 
 `collect.py --daily` → `upload_sheets.py --data` 를 순서대로 실행하고, 결과를
-텔레그램 메시지로 보낸다(지수·종목·환율·금리·수급 요약 + 대시보드 링크). 실패하면
-어느 단계에서 어떤 에러였는지를 보낸다.
+텔레그램 메시지로 보낸다. 실패하면 어느 단계에서 어떤 에러였는지를 보낸다.
+
+```
+📊 2026-08-28 시장 브리핑
+
+▶ *지수*
+🇰🇷 KOSPI 6,912.37 (+104.16, +1.53%) 🟢
+...
+▶ *👥 수급(외국인/기관/개인)*
++133,282 / +183,528 / -1,911,575 (백만원)
+
+🔗 자세히보기(웹 페이지)
+https://buly.kr/2JqqPBg
+```
+
+문구는 `BRIEFING_GROUPS`가 정한다. 이모지는 대시보드 카드와 같은 것을 쓰고, 소수 자릿수는
+계열마다 따로 준다 — 원화 종목에 소수점 두 자리는 아무 뜻도 없으면서 여섯 글자를 잡아먹고,
+줄이 폰 화면 폭을 넘으면 뒤의 🟢/🔴만 다음 줄로 떨어져 읽기 사나워진다.
 
 봇 토큰/채팅 ID는 환경변수 `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` 또는
 `API-KEY.txt`의 `Telegram Bot Token:` / `Telegram Chat ID:` 줄에서 읽는다.
+
+환경변수 두 개로 동작을 줄일 수 있다(Actions가 이걸로 빌드 테스트와 실제 수집을 가른다).
+
+| 변수 | `1`이면 |
+|---|---|
+| `SKIP_KIS` | KIS 계열을 건너뛴다. KIS는 토큰을 새로 받을 때마다 계정으로 알림톡을 보내는데, 러너는 매번 새 환경이라 실행 한 번이 알림 한 통이 된다. WTI는 야후로 대체 |
+| `DRY_RUN` | 텔레그램·구글시트를 건드리지 않고 화면에만 찍는다 |
 
 ## 8. GitHub Actions (서버 없이 매일 자동 실행)
 
 `.github/workflows/daily.yml`이 평일 16:10 KST(07:10 UTC)에
 `notify_daily.py` → `build_dashboard.py`를 실행하고 `data/`, `docs/`를
-커밋·푸시한다. 설정(최초 1회):
+커밋·푸시한다.
+
+세 가지 계기로 도는데 하는 일이 다르다.
+
+| 계기 | KIS 수집 | 텔레그램·시트 | 결과 커밋 |
+|---|---|---|---|
+| `schedule` (평일 16:10) | O | O | O |
+| `workflow_dispatch` (수동) | 입력값 `skip_kis`에 따라 (기본 건너뜀) | O | O |
+| `push` (코드 올릴 때) | X | X (`DRY_RUN`) | X |
+
+`push`는 빌드가 깨지지 않았는지만 보는 것이라 바깥 상태를 하나도 건드리지 않는다.
+수동 실행이 KIS를 기본으로 건너뛰는 것도 같은 이유 — 손으로 여러 번 돌려보는 동안
+알림톡이 그 횟수만큼 오기 때문이다. 예약 실행만 전부 수집한다(하루 한 통은 정상 비용).
+
+설정(최초 1회):
 
 1. **Settings → Secrets and variables → Actions → New repository secret**로 추가:
    - `KIS_APP_KEY`, `KIS_APP_SECRET` — 한국투자증권
@@ -408,3 +471,15 @@ python notify_daily.py
 Actions 실행 중 실패하면(토큰 만료, API 장애 등) `notify_daily.py`가 실패 사유를
 텔레그램으로 보낸다. `data`/`docs` 커밋은 push 권한이 필요하므로 워크플로 상단의
 `permissions: contents: write`를 지우지 말 것.
+
+빌드·커밋 단계는 `if: always()`로 둔다. `collect.py`는 계열을 받는 족족 CSV에 쓰므로,
+구글시트 업로드나 텔레그램 전송이 실패했다고 커밋을 건너뛰면 **그날 받아둔 데이터가
+통째로 버려진다** — 다음 날 `--daily`는 최근 며칠만 보기 때문에 구멍이 남는다.
+푸시는 rebase로 세 번까지 다시 시도한다. 올리는 것이 데이터 파일뿐이라, 사이에 사람이
+push 했다고 실행이 실패할 이유가 없다.
+
+## 9. 문서 유지
+
+**코드를 고치면 이 README도 같은 커밋에서 고친다.** 실행법·지표 목록·대시보드 동작·
+워크플로·텔레그램 문구 중 무엇이든 바뀌면 해당 절을 손본다. 화면이 바뀌었으면
+`docs/screenshots/`도 다시 찍는다(6절 끝의 명령).
