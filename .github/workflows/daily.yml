@@ -26,12 +26,7 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: google-service-account.json 복원
-        run: echo "$GOOGLE_SERVICE_ACCOUNT_JSON" > google-service-account.json
-        env:
-          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-
-      - name: 수집 + 업로드 + 텔레그램 알림
+      - name: 수집 + 텔레그램 알림
         run: python notify_daily.py
         env:
           KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
@@ -42,12 +37,12 @@ jobs:
           # 예약 실행(schedule)은 항상 전체 수집. push(빌드 테스트)는 KIS 알림톡을
           # 막기 위해 무조건 건너뛴다. workflow_dispatch는 입력값을 따른다.
           SKIP_KIS: ${{ (github.event_name != 'schedule' && (github.event_name == 'push' || inputs.skip_kis)) && '1' || '0' }}
-          # push는 빌드 테스트일 뿐이라 구글시트/텔레그램 등 외부 상태를 건드리지 않는다.
+          # push는 빌드 테스트일 뿐이라 텔레그램 등 외부 상태를 건드리지 않는다.
           DRY_RUN: ${{ github.event_name == 'push' && '1' || '0' }}
 
-      # collect.py 는 계열을 받는 족족 data/*.csv 에 쓴다. 구글시트 업로드나 텔레그램
-      # 전송이 실패해도 이미 받아둔 데이터는 커밋해야 한다 — 안 그러면 그 날 수집분이
-      # 통째로 버려지고, 다음 날 --daily 는 최근 며칠만 보므로 구멍이 남는다.
+      # collect.py 는 계열을 받는 족족 data/*.csv 에 쓴다. 뒤 단계가 실패해도 이미
+      # 받아둔 데이터는 커밋해야 한다 — 안 그러면 그 날 수집분이 통째로 버려지고,
+      # 다음 날 --daily 는 최근 며칠만 보므로 구멍이 남는다.
       - name: 대시보드 데이터 생성
         if: always()
         run: python build_dashboard.py
@@ -55,7 +50,6 @@ jobs:
       - name: 결과 커밋
         if: always() && github.event_name != 'push'
         run: |
-          rm -f google-service-account.json
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data docs

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""collect.py --daily 후 upload_sheets.py --data 실행하고 결과를 텔레그램으로 보낸다.
+"""collect.py --daily 를 돌리고 그 결과를 텔레그램 브리핑으로 보낸다.
 
     python notify_daily.py
 
@@ -129,24 +129,15 @@ def main():
     # SKIP_KIS=1 이면 KIS 계열을 건너뛴다. 손으로 여러 번 돌려볼 때 KIS 알림톡이
     # 매번 오는 것을 막으려는 것이라, 예약 실행에서는 켜지 않는다.
     extra = ["--skip-kis"] if os.environ.get("SKIP_KIS") == "1" else []
-    rc1, out1 = run("collect.py", "--daily", *extra)
-    # DRY_RUN=1 이면 구글시트도 건드리지 않는다(빌드 테스트가 외부 상태를 바꾸면 안 됨).
-    if os.environ.get("DRY_RUN") == "1":
-        rc2, out2 = (0, "[DRY-RUN] 구글시트 업로드 건너뜀") if rc1 == 0 else (rc1, "collect 실패로 건너뜀")
-    else:
-        rc2, out2 = (run("upload_sheets.py", "--data") if rc1 == 0 else (rc1, "collect 실패로 건너뜀"))
+    rc, out = run("collect.py", "--daily", *extra)
 
-    if rc1 == 0 and rc2 == 0:
+    if rc == 0:
         text = build_briefing()
     else:
-        text = (
-            "[지표추적자] 실패\n"
-            f"collect.py rc={rc1}: {last_line(out1)}\n"
-            f"upload_sheets.py rc={rc2}: {last_line(out2)}"
-        )
+        text = f"[지표추적자] 수집 실패 (rc={rc})\n{last_line(out)}"
     print(text)
     send_telegram(text)
-    sys.exit(0 if rc1 == 0 and rc2 == 0 else 1)
+    sys.exit(rc)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@
 사용법:
     python collect.py --init          # 과거치 전체 수집 (최초 1회)
     python collect.py --daily         # 최근 영업일치만 갱신 (매일 18:00 KST)
-    python collect.py --excel         # data/*.csv -> market_data.xlsx (구글시트 업로드용)
+    python collect.py --excel         # data/*.csv -> market_data.xlsx (엑셀로 훑어볼 때)
 
 수집 결과는 data/<지표>.csv 에 날짜 기준으로 누적/갱신된다.
 """
@@ -520,7 +520,7 @@ def for_output(name, df, today=None, trim=True):
 
 
 def output_frames(today=None, trim=True):
-    """{시트명: 출력용 DataFrame}. 엑셀·구글시트 양쪽이 같은 가공을 쓴다."""
+    """{계열명: 출력용 DataFrame}. 엑셀과 대시보드가 같은 가공을 쓴다."""
     frames = {}
     for csv in sorted(DATA.glob("*.csv")):
         frames[csv.stem] = for_output(

@@ -32,7 +32,8 @@
 | **알림** | 수집·업로드를 순서대로 돌리고 결과를 텔레그램으로 | [`notify_daily.py`](notify_daily.py) |
 
 평일 16:10 KST에 [GitHub Actions](.github/workflows/daily.yml)가 셋을 차례로 돌리고
-갱신된 CSV를 저장소에 다시 커밋한다. 구글 시트 업로드도 그대로 남아 있다(5절).
+갱신된 CSV를 저장소에 다시 커밋한다. 대시보드는 그 커밋된 데이터를 그대로 읽는다 —
+바깥 서비스에 기대는 데가 없다.
 
 - **통합 뷰**: 전 지표를 섹터별로 한 화면에.
 - **개별 지표**: 크게 한 장. 금·WTI·비트코인은 MACD와 RSI가 아래 칸에 붙고,
@@ -65,19 +66,18 @@ KIS는 토큰 발급을 1분에 1회로 제한하므로 캐시를 지우지 말 
 
 ## 2. 실행
 
-평소에는 GitHub Actions가 알아서 돌린다(8절). 손으로 돌릴 일이 있을 때만 쓴다.
+평소에는 GitHub Actions가 알아서 돌린다(7절). 손으로 돌릴 일이 있을 때만 쓴다.
 
 ```bash
-python notify_daily.py        # 수집 + 구글시트 + 텔레그램까지 한 번에 (Actions가 부르는 것)
+python notify_daily.py        # 수집 + 텔레그램 브리핑까지 한 번에 (Actions가 부르는 것)
 python build_dashboard.py     # data/*.csv -> docs/data.json (대시보드 갱신)
 ```
 
 ```bash
 python collect.py --init      # 과거치 전체 수집 + market_data.xlsx 생성 (최초 1회)
 python collect.py --daily     # 최근 10영업일 갱신 (매일)
-python collect.py --backfill 1825   # 전 계열 5년치 다시 받아 CSV에 합침 (6절)
+python collect.py --backfill 1825   # 전 계열 5년치 다시 받아 CSV에 합침 (5절)
 python collect.py --excel     # data/*.csv -> market_data.xlsx 재생성
-python upload_sheets.py --data      # 구글 시트 반영
 python import_ecos.py "시장금리(일별)_04000531.xlsx"   # ECOS 엑셀 -> data/ktb3y.csv
 python test_collect.py        # 네트워크 없이 로직 검증
 ```
@@ -107,7 +107,7 @@ python build_dashboard.py && python -m http.server 8420 --directory docs
 기간·주기는 [`collect.py`](collect.py)의 `SPEC` 한 곳에서 정한다. 수집 범위와 출력 가공(기간 자르기 +
 주간 리샘플)이 모두 이 값을 따르므로 범위를 바꾸려면 `SPEC`만 고치면 된다.
 
-계열 이름은 `data/<계열>.csv`, 구글 시트 탭 이름, `docs/data.json`의 키로 그대로 쓰인다.
+계열 이름은 `data/<계열>.csv` 와 `docs/data.json` 의 키로 그대로 쓰인다.
 **굵게** 표시한 것이 웹 대시보드에 그려지는 계열이다.
 
 | 계열 | 지표 | 출처 (TR ID) | 주기 | 기간 |
@@ -134,9 +134,9 @@ python build_dashboard.py && python -m http.server 8420 --directory docs
 | **`oracle`** | 오라클 OHLC | 야후 `ORCL` | 일 | 6개월 |
 | **`nvidia`** | 엔비디아 OHLC | 야후 `NVDA` | 일 | 6개월 |
 
-위 표의 **기간은 `SPEC` 값**(구글 시트·엑셀에 내보내는 범위)이다. 웹 대시보드가 보여주는
+위 표의 **기간은 `SPEC` 값**(엑셀로 내보낼 때 자르는 범위)이다. 웹 대시보드가 보여주는
 구간은 이와 별개로 `docs/app.js`의 `view`가 정한다(예: 금·비트코인 1년, WTI 6개월).
-CSV에는 그보다 긴 데이터가 쌓여 있어야 이동평균이 화면 왼쪽에서 잘리지 않는다 — 6절 참고.
+CSV에는 그보다 긴 데이터가 쌓여 있어야 이동평균이 화면 왼쪽에서 잘리지 않는다 — 5절 참고.
 
 CSV에는 수집한 원본(일별)을 그대로 쌓고, 기간 자르기·주간 집계는 출력 시점(`for_output`)에 한다.
 범위를 다시 늘려도 이미 받아둔 데이터는 버려지지 않는다.
@@ -219,91 +219,11 @@ INVESTOR_MAP = {
 `data/`가 이제 저장소에 커밋되므로 실행할 때마다 Actions가 결과를 다시 커밋해
 푸시한다 — 이게 유일한 실행 지점이면 된다. 설정법은 8절 참고.
 
-로컬/VPS에서 손으로 또는 cron으로 병행 실행하면 `data/` 사본이 갈리고 구글시트를
-서로 덮어쓴다. 자동 실행은 Actions 한 곳으로 두고, 다른 환경은 필요할 때만 손으로
+로컬/VPS에서 손으로 또는 cron으로 병행 실행하면 `data/` 사본이 갈려 서로 덮어쓴다. 자동 실행은 Actions 한 곳으로 두고, 다른 환경은 필요할 때만 손으로
 돌린다. 자체 cron이 필요하면 5절 끝의 "매일 갱신에 붙이기" 참고 (Actions와 동시에
 쓰지 말 것).
 
-## 5. 구글 시트 업로드 (선택)
-
-웹 대시보드(6절)와 별개로, 같은 데이터를 구글 시트에도 올린다.
-시트 쪽 차트가 익숙하면 쓰고, 아니면 이 절은 건너뛰어도 된다.
-
-대상 시트 ID는 `upload_sheets.py`의 `SPREADSHEET_ID` 상수에서 바꾼다.
-
-```bash
-python upload_sheets.py            # 데이터 업로드 + dashboard 재생성
-python upload_sheets.py --data     # 데이터만
-python upload_sheets.py --charts   # 차트만 재생성
-```
-
-### 서비스 계정 준비 (최초 1회, 약 5분)
-
-1. https://console.cloud.google.com → 프로젝트 생성(아무 이름)
-2. **API 및 서비스 → 라이브러리** → `Google Sheets API` 검색 → **사용 설정**
-3. **API 및 서비스 → 사용자 인증 정보 → 사용자 인증 정보 만들기 → 서비스 계정**
-   - 이름 아무거나, 역할은 지정하지 않아도 됨 → 완료
-4. 만들어진 서비스 계정 클릭 → **키 → 키 추가 → 새 키 만들기 → JSON** → 다운로드
-   - 받은 파일을 이 저장소에 `google-service-account.json` 으로 저장 (`.gitignore` 등록됨)
-5. 구글 시트 열기 → **공유** → JSON 안의 `client_email`
-   (`...@....iam.gserviceaccount.com`) 을 **편집자**로 추가
-
-### 만들어지는 것
-
-- 지표별 시트: `SPEC`(collect.py)에 있는 21개 계열 전부 — `kospi`, `kosdaq`,
-  `samsung_elec`, `sk_hynix`, `wti`, `usdkrw`, `usdjpy`, `ust10y`, `ust2y`,
-  `ktb3y`, `ktb10y`, `investor_flow`, `sp500`, `nasdaq`, `dow`, `russell2000`,
-  `dxy`, `btc`, `gold`, `oracle`, `nvidia` — 매 실행마다 전체 덮어쓰기(중복·순서
-  걱정 없음)
-- `dashboard` 시트(맨 앞): 760x570px(4:3) 차트, 픽셀 오프셋으로 겹치지 않게 배치.
-  배치는 `upload_sheets.py`의 `LAYOUT` 리스트가 그대로 화면 순서다.
-
-  | 행 | 내용 |
-  |---|---|
-  | 1 | 외국인 누적 순매수 + 4주 MA · 주체별 누적 순매수(외국인/기관/개인/연기금) |
-  | 2 | KOSPI 캔들 · KOSDAQ 캔들 · 나스닥 캔들 |
-  | 3 | 미국채 10년 금리 · 국고채 3년 금리 |
-  | 4 | WTI 원유 선물 캔들 · 금 캔들 |
-  | 5 | 삼성전자 캔들 · SK하이닉스 캔들 · 엔비디아 캔들 · 오라클 캔들 |
-  | 6 | 원달러 환율 캔들 · 달러엔 환율 캔들 |
-
-  `--charts` 실행 시 `dashboard`를 통째로 지우고 다시 만든다(차트 중복 방지).
-
-`investor_flow` 시트에는 누적/이동평균 열(`*_cum`, `foreign_ma4w`, `foreign_cum_ma4w`)이
-업로드 시점에 계산되어 함께 올라간다.
-
-**날짜 열은 텍스트로 올린다** (`valueInputOption=RAW`). 구글 캔들차트는 도메인(1열)이 텍스트여야
-해서, 날짜형으로 들어가면 차트가 `1열은 텍스트여야 합니다` 오류를 내고 그려지지 않는다.
-시트에서 날짜 열 서식을 날짜로 바꾸면 같은 오류가 재발하니 그대로 두는 편이 좋다.
-
-### 캔들차트 세로축은 손으로 한 번 넣어야 한다
-
-Sheets API의 `candlestickChart`에는 축 설정 필드가 아예 없다(`axis` 를 넣으면 400). 그래서 API로
-만든 캔들차트는 **0부터** 시작해 환율처럼 변동폭이 작은 지표가 일직선으로 보인다. 선 그래프는
-`basicChart.axis.viewWindowOptions` 로 코드에서 자동 설정되므로 손댈 필요 없다.
-
-```bash
-python upload_sheets.py --ranges   # 데이터에 맞는 최솟값/최댓값 출력
-```
-
-**캔들 색상도 바꿀 수 없다.** Sheets 캔들차트는 시리즈 그룹을 1개만 허용하고
-(`More than 1 candlestickChartSpec.data is not supported`) 색상 필드 자체가 없다. 상승/하락을
-빨강·파랑으로 칠하려면 시트가 아니라 로컬에서 이미지(mplfinance 등)로 그려 붙이는 수밖에 없다.
-
-출력된 값을 각 캔들차트에서 **차트 더블클릭 → 맞춤설정 → 세로축 → 최솟값/최댓값**에 입력한다.
-`--charts` 로 대시보드를 재생성하면 차트가 새로 만들어지므로 이 값도 다시 넣어야 한다.
-데이터만 갱신(`--data`)할 때는 유지된다 — 그래서 매일 갱신은 `--data` 를 쓴다.
-
-### 매일 갱신에 붙이기
-
-```cron
-0 18 * * 1-5 cd /path/to/market-indicator-tracker && python3 collect.py --daily && python3 upload_sheets.py --data >> update.log 2>&1
-```
-
-`/path/to/market-indicator-tracker`는 저장소를 clone한 실제 경로로 바꾼다.
-차트는 데이터 범위를 행 수까지 잡아두므로, 행이 늘면 `--charts`를 가끔(월 1회 정도) 다시 돌리면 된다.
-
-## 6. 웹 대시보드 (GitHub Pages)
+## 5. 웹 대시보드 (GitHub Pages)
 
 ```bash
 python build_dashboard.py    # data/*.csv -> docs/data.json
@@ -402,14 +322,14 @@ python build_dashboard.py
 데이터를 갱신하려면 `build_dashboard.py`를 다시 돌리고 `docs/data.json`을 커밋한다
 (GitHub Actions가 매일 자동으로 한다).
 
-## 7. 텔레그램 일일 브리핑
+## 6. 텔레그램 일일 브리핑
 
 ```bash
 python notify_daily.py
 ```
 
-`collect.py --daily` → `upload_sheets.py --data` 를 순서대로 실행하고, 결과를
-텔레그램 메시지로 보낸다. 실패하면 어느 단계에서 어떤 에러였는지를 보낸다.
+`collect.py --daily` 를 돌리고 그 결과를 텔레그램 메시지로 보낸다. 수집이 실패하면
+무엇이 어떻게 실패했는지를 대신 보낸다.
 
 ```
 📊 2026-08-28 시장 브리핑
@@ -436,9 +356,9 @@ https://buly.kr/2JqqPBg
 | 변수 | `1`이면 |
 |---|---|
 | `SKIP_KIS` | KIS 계열을 건너뛴다. KIS는 토큰을 새로 받을 때마다 계정으로 알림톡을 보내는데, 러너는 매번 새 환경이라 실행 한 번이 알림 한 통이 된다. WTI는 야후로 대체 |
-| `DRY_RUN` | 텔레그램·구글시트를 건드리지 않고 화면에만 찍는다 |
+| `DRY_RUN` | 텔레그램으로 보내지 않고 화면에만 찍는다 |
 
-## 8. GitHub Actions (서버 없이 매일 자동 실행)
+## 7. GitHub Actions (서버 없이 매일 자동 실행)
 
 `.github/workflows/daily.yml`이 평일 16:10 KST(07:10 UTC)에
 `notify_daily.py` → `build_dashboard.py`를 실행하고 `data/`, `docs/`를
@@ -446,7 +366,7 @@ https://buly.kr/2JqqPBg
 
 세 가지 계기로 도는데 하는 일이 다르다.
 
-| 계기 | KIS 수집 | 텔레그램·시트 | 결과 커밋 |
+| 계기 | KIS 수집 | 텔레그램 | 결과 커밋 |
 |---|---|---|---|
 | `schedule` (평일 16:10) | O | O | O |
 | `workflow_dispatch` (수동) | 입력값 `skip_kis`에 따라 (기본 건너뜀) | O | O |
@@ -462,7 +382,6 @@ https://buly.kr/2JqqPBg
    - `KIS_APP_KEY`, `KIS_APP_SECRET` — 한국투자증권
    - `ECOS_API_KEY` — 한국은행 ECOS
    - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
-   - `GOOGLE_SERVICE_ACCOUNT_JSON` — `google-service-account.json` 파일 내용 전체(JSON 텍스트)를 그대로 붙여넣기
 2. **Settings → Pages → Build and deployment → Source**를 `Deploy from a branch`,
    브랜치는 `main` / 폴더는 `/docs`로 지정. 몇 분 뒤
    `https://<계정>.github.io/<저장소>/`에서 대시보드가 뜬다.
@@ -473,13 +392,13 @@ Actions 실행 중 실패하면(토큰 만료, API 장애 등) `notify_daily.py`
 `permissions: contents: write`를 지우지 말 것.
 
 빌드·커밋 단계는 `if: always()`로 둔다. `collect.py`는 계열을 받는 족족 CSV에 쓰므로,
-구글시트 업로드나 텔레그램 전송이 실패했다고 커밋을 건너뛰면 **그날 받아둔 데이터가
+텔레그램 전송이 실패했다고 커밋을 건너뛰면 **그날 받아둔 데이터가
 통째로 버려진다** — 다음 날 `--daily`는 최근 며칠만 보기 때문에 구멍이 남는다.
 푸시는 rebase로 세 번까지 다시 시도한다. 올리는 것이 데이터 파일뿐이라, 사이에 사람이
 push 했다고 실행이 실패할 이유가 없다.
 
-## 9. 문서 유지
+## 8. 문서 유지
 
 **코드를 고치면 이 README도 같은 커밋에서 고친다.** 실행법·지표 목록·대시보드 동작·
 워크플로·텔레그램 문구 중 무엇이든 바뀌면 해당 절을 손본다. 화면이 바뀌었으면
-`docs/screenshots/`도 다시 찍는다(6절 끝의 명령).
+`docs/screenshots/`도 다시 찍는다(5절 끝의 명령).
