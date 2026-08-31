@@ -217,7 +217,7 @@ INVESTOR_MAP = {
 
 ## 4. 자동 실행
 
-**평일 16:10(KST) GitHub Actions에서 자동 실행된다** (`.github/workflows/daily.yml`).
+**평일 16:37(KST) GitHub Actions에서 자동 실행된다** (`.github/workflows/daily.yml`).
 `data/`가 이제 저장소에 커밋되므로 실행할 때마다 Actions가 결과를 다시 커밋해
 푸시한다 — 이게 유일한 실행 지점이면 된다. 설정법은 8절 참고.
 
@@ -363,15 +363,21 @@ https://buly.kr/2JqqPBg
 
 ## 7. GitHub Actions (서버 없이 매일 자동 실행)
 
-`.github/workflows/daily.yml`이 평일 16:10 KST(07:10 UTC)에
+`.github/workflows/daily.yml`이 평일 16:37 KST(07:37 UTC)에
 `notify_daily.py` → `build_dashboard.py`를 실행하고 `data/`, `docs/`를
 커밋·푸시한다.
+
+시각이 :37 인 건 GitHub 의 `schedule` 큐가 매시 정각 근처에서 가장 붐비고, 그때
+트리거가 몇 시간씩 밀리거나 아예 유실되기 때문이다. 그래도 유실은 완전히 막지
+못하니, 정해진 시각이 지났는데 실행이 없으면 수동으로 돌리면 된다 —
+`gh workflow run daily-collect -f skip_kis=false`. `collect.py --daily` 가 최근
+10영업일을 다시 훑으므로 하루 걸러도 다음 실행이 구멍을 메운다.
 
 세 가지 계기로 도는데 하는 일이 다르다.
 
 | 계기 | KIS 수집 | 텔레그램 | 결과 커밋 |
 |---|---|---|---|
-| `schedule` (평일 16:10) | O | O | O |
+| `schedule` (평일 16:37) | O | O | O |
 | `workflow_dispatch` (수동) | 입력값 `skip_kis`에 따라 (기본 건너뜀) | O | O |
 | `push` (코드 올릴 때) | X | X (`DRY_RUN`) | X |
 
