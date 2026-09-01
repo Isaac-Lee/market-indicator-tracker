@@ -62,7 +62,22 @@ Cloudflare 무료 플랜으로 충분하고 카드 등록도 필요 없다.
 
 ## 손으로 한 번 깨워보기
 
-cron 을 기다리지 않고 `scheduled` 핸들러를 직접 부른다. 한 터미널에서:
+cron 을 기다리지 않고 `scheduled` 핸들러를 직접 부른다.
+
+`wrangler dev`는 로컬에서 도는 것이라 `wrangler secret put`으로 배포한
+비밀값(`GITHUB_TOKEN`)을 못 본다 — 그건 배포된 Worker 에만 있다. 로컬
+실행은 대신 `trigger/.dev.vars` 파일에서 변수를 읽으므로, 이 파일을 먼저
+만들어야 한다:
+
+```bash
+echo 'GITHUB_TOKEN=<토큰>' > trigger/.dev.vars
+```
+
+이 파일은 토큰을 평문으로 담으므로 커밋하면 안 된다 — `.gitignore`에
+이미 올라가 있으니 실수로 올라갈 일은 없지만, 다른 이름으로 복사하거나
+옮기지 말 것. 이 절차를 마쳤으면 지운다.
+
+한 터미널에서:
 
 ```bash
 cd trigger && npx wrangler dev --test-scheduled
@@ -75,6 +90,9 @@ curl "http://localhost:8787/__scheduled?cron=37+7+*+*+1-5"
 ```
 
 첫 터미널 로그에 `dispatch 성공` 이 찍히고, 곧 Actions 에 실행이 생긴다.
+여기서 401 이 나면 `.dev.vars`가 없거나 토큰 값이 비어 있다는 뜻이지,
+Worker 에 배포된 토큰이 잘못됐다는 뜻이 아니다 — 재발급하기 전에
+`.dev.vars`부터 확인할 것.
 
 ## 토큰이 만료되면
 
