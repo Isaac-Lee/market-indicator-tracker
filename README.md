@@ -68,7 +68,7 @@ KIS는 토큰 발급을 1분에 1회로 제한하므로 캐시를 지우지 말 
 
 ## 2. 실행
 
-평소에는 GitHub Actions가 알아서 돌린다(7절). 손으로 돌릴 일이 있을 때만 쓴다.
+평소에는 Cloudflare Worker가 깨우고 GitHub Actions가 돌린다(7·8절). 손으로 돌릴 일이 있을 때만 쓴다.
 
 ```bash
 python notify_daily.py        # 수집 + 텔레그램 브리핑까지 한 번에 (Actions가 부르는 것)
@@ -369,9 +369,8 @@ https://buly.kr/2JqqPBg
 | `SKIP_KIS` | KIS 계열을 건너뛴다. KIS는 토큰을 새로 받을 때마다 계정으로 알림톡을 보내는데, 러너는 매번 새 환경이라 실행 한 번이 알림 한 통이 된다. WTI는 야후로 대체 |
 | `DRY_RUN` | 텔레그램으로 보내지 않고 화면에만 찍는다 |
 
-`HEALTHCHECK_URL`은 값이 `1`인지가 아니라 주소 자체를 쓴다. 실행이 끝나면 이
-주소로 ping 을 보내고, 수집이 실패했으면 `/fail` 을 붙여 보낸다. 비어 있으면
-ping 을 건너뛰므로 로컬 실행이 남의 체크를 때리지 않는다.
+`HEALTHCHECK_URL`은 `notify_daily.py`가 아니라 워크플로의 마지막 단계가 쓴다 —
+7절 참고.
 
 ## 7. GitHub Actions (실행 담당)
 
@@ -400,6 +399,8 @@ ping 을 건너뛰므로 로컬 실행이 남의 체크를 때리지 않는다.
    - `KIS_APP_KEY`, `KIS_APP_SECRET` — 한국투자증권
    - `ECOS_API_KEY` — 한국은행 ECOS
    - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+   - `HEALTHCHECK_URL` — healthchecks.io ping 주소. 없어도 실행은 그대로
+     되지만, 실행이 조용히 멈췄을 때 알아챌 방법이 없어진다.
 2. **Settings → Pages → Build and deployment → Source**를 `Deploy from a branch`,
    브랜치는 `main` / 폴더는 `/docs`로 지정. 몇 분 뒤
    `https://<계정>.github.io/<저장소>/`에서 대시보드가 뜬다.
@@ -415,12 +416,17 @@ Actions 실행 중 실패하면(토큰 만료, API 장애 등) `notify_daily.py`
 푸시는 rebase로 세 번까지 다시 시도한다. 올리는 것이 데이터 파일뿐이라, 사이에 사람이
 push 했다고 실행이 실패할 이유가 없다.
 
+마지막 단계는 `HEALTHCHECK_URL`로 healthchecks.io ping 을 보낸다. 이 단계를
+맨 뒤에 두는 이유: 성공 ping 은 "그날 데이터가 실제로 커밋·배포됐다"를
+뜻해야지, 수집만 끝났다는 뜻이면 안 된다. `job.status`로 성공/실패를 가르고,
+`HEALTHCHECK_URL`이 비어 있으면 조용히 건너뛴다.
+
 ## 8. 트리거 (Cloudflare Worker)
 
 언제 도는지를 정하는 것은 `trigger/` 의 Worker 다. 평일 16:37 KST 에 깨어나
 `daily.yml` 을 dispatch 한다. 배포와 토큰 발급 절차는 `trigger/README.md` 에
 있다.
 
-실행이 멈추면 healthchecks.io 가 알린다 — `notify_daily.py` 가 매 실행 끝에
-ping 을 보내고, 평일 16:47 KST 까지 ping 이 없으면 알림이 온다. Worker 가
-죽든, 토큰이 만료되든, Actions 가 멈추든 침묵 자체가 신호가 된다.
+실행이 멈추면 healthchecks.io 가 알린다 — `daily.yml`의 마지막 단계가 매
+실행 끝에 ping 을 보내고, 평일 16:47 KST 까지 ping 이 없으면 알림이 온다.
+Worker 가 죽든, 토큰이 만료되든, Actions 가 멈추든 침묵 자체가 신호가 된다.
