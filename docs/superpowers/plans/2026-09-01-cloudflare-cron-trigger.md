@@ -216,10 +216,10 @@ on:
 
 - [ ] **Step 4: YAML 이 유효한지 확인한다**
 
-Run: `/usr/bin/python3 -c "import yaml,sys; d=yaml.safe_load(open('.github/workflows/daily.yml')); print(sorted(d[True].keys()))"`
-Expected: `['push', 'workflow_dispatch']` — `schedule`이 없고 나머지 둘은 남아 있다
+Run: `grep -n "^  schedule:\|^  push:\|^  workflow_dispatch:\|cron:" .github/workflows/daily.yml`
+Expected: `push:` 와 `workflow_dispatch:` 두 줄만 나온다. `schedule:` 도 `cron:` 도 없어야 한다.
 
-(YAML에서 맨 앞의 `on:` 키는 파이썬에서 불리언 `True`로 읽힌다. 오타가 아니다.)
+(pyyaml 로 파싱해 확인하는 쪽이 엄밀하지만 이 프로젝트에 없는 의존성이고, 검증 한 줄을 위해 requirements 를 늘릴 이유가 없다. 트리거 키는 들여쓰기가 고정이라 grep 으로 충분하다.)
 
 - [ ] **Step 5: README 4절을 고쳐 쓴다**
 
