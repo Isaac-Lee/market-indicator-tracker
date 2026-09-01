@@ -1,12 +1,10 @@
 name: daily-collect
 
 on:
-  schedule:
-    # 07:37 UTC = 16:37 KST, 평일. 분을 정시에서 멀리 둔 건 취향이 아니라,
-    # GitHub 의 schedule 큐가 매시 정각 근처에서 가장 붐비고 그때 트리거가
-    # 늦거나 아예 유실되기 때문이다. 실제로 :10 으로 두었을 때 정시 발화가
-    # 한 번도 없었다.
-    - cron: "37 7 * * 1-5"
+  # 예약 실행은 Cloudflare Worker 가 workflow_dispatch 로 깨운다. GitHub 의
+  # schedule 은 이 저장소에서 여섯 슬롯 연속 발화하지 않았고, 같은 파일이
+  # dispatch 로는 매번 돌았다. 자세한 경위는 trigger/README.md 참고.
+  #
   # push 는 빌드가 깨지지 않았는지 보는 것이라, 실행에 영향을 주지 않는 것만
   # 바뀌었으면 돌릴 이유가 없다.
   push:
@@ -45,9 +43,11 @@ jobs:
           ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          # 예약 실행(schedule)은 항상 전체 수집. push(빌드 테스트)는 KIS 알림톡을
-          # 막기 위해 무조건 건너뛴다. workflow_dispatch는 입력값을 따른다.
-          SKIP_KIS: ${{ (github.event_name != 'schedule' && (github.event_name == 'push' || inputs.skip_kis)) && '1' || '0' }}
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
+          # push(빌드 테스트)는 KIS 알림톡을 막기 위해 무조건 건너뛴다.
+          # workflow_dispatch 는 입력값을 따르고, Worker 는 skip_kis: "false" 를
+          # 보내므로 예약 실행은 전체 수집이 된다.
+          SKIP_KIS: ${{ (github.event_name == 'push' || inputs.skip_kis) && '1' || '0' }}
           # push는 빌드 테스트일 뿐이라 텔레그램 등 외부 상태를 건드리지 않는다.
           DRY_RUN: ${{ github.event_name == 'push' && '1' || '0' }}
 

@@ -217,9 +217,17 @@ INVESTOR_MAP = {
 
 ## 4. 자동 실행
 
-**평일 16:37(KST) GitHub Actions에서 자동 실행된다** (`.github/workflows/daily.yml`).
-`data/`가 이제 저장소에 커밋되므로 실행할 때마다 Actions가 결과를 다시 커밋해
-푸시한다 — 이게 유일한 실행 지점이면 된다. 설정법은 8절 참고.
+**평일 16:37(KST)에 Cloudflare Worker 가 GitHub Actions 를 깨운다**
+(`trigger/`, `.github/workflows/daily.yml`). 수집·커밋·텔레그램·Pages 배포는
+전부 Actions 안에서 돌고, Worker 는 시각이 되면 실행을 요청하는 일만 한다.
+
+GitHub 자체 `schedule` 은 쓰지 않는다. 이 저장소에서 예정 슬롯 여섯 번이
+연속으로 발화하지 않았고, 같은 워크플로가 `workflow_dispatch` 로는 매번
+정상 실행됐다. 경위는 `docs/superpowers/specs/2026-09-01-cloudflare-cron-trigger-design.md`
+에 적어 두었다.
+
+`data/`가 저장소에 커밋되므로 실행할 때마다 Actions 가 결과를 다시 커밋해
+푸시한다 — 이게 유일한 실행 지점이면 된다.
 
 로컬/VPS에서 손으로 또는 cron으로 병행 실행하면 `data/` 사본이 갈려 서로 덮어쓴다. 자동 실행은 Actions 한 곳으로 두고, 다른 환경은 필요할 때만 손으로
 돌린다. 자체 cron이 필요하면 5절 끝의 "매일 갱신에 붙이기" 참고 (Actions와 동시에
@@ -365,24 +373,17 @@ https://buly.kr/2JqqPBg
 주소로 ping 을 보내고, 수집이 실패했으면 `/fail` 을 붙여 보낸다. 비어 있으면
 ping 을 건너뛰므로 로컬 실행이 남의 체크를 때리지 않는다.
 
-## 7. GitHub Actions (서버 없이 매일 자동 실행)
+## 7. GitHub Actions (실행 담당)
 
-`.github/workflows/daily.yml`이 평일 16:37 KST(07:37 UTC)에
-`notify_daily.py` → `build_dashboard.py`를 실행하고 `data/`, `docs/`를
-커밋·푸시한다.
+`.github/workflows/daily.yml`이 `notify_daily.py` → `build_dashboard.py`를
+실행하고 `data/`, `docs/`를 커밋·푸시한다. 언제 도는지는 Actions 가 정하지
+않는다 — `trigger/` 의 Worker 가 정한다.
 
-시각이 :37 인 건 GitHub 의 `schedule` 큐가 매시 정각 근처에서 가장 붐비고, 그때
-트리거가 몇 시간씩 밀리거나 아예 유실되기 때문이다. 그래도 유실은 완전히 막지
-못하니, 정해진 시각이 지났는데 실행이 없으면 수동으로 돌리면 된다 —
-`gh workflow run daily-collect -f skip_kis=false`. `collect.py --daily` 가 최근
-10영업일을 다시 훑으므로 하루 걸러도 다음 실행이 구멍을 메운다.
-
-세 가지 계기로 도는데 하는 일이 다르다.
+두 가지 계기로 도는데 하는 일이 다르다.
 
 | 계기 | KIS 수집 | 텔레그램 | 결과 커밋 |
 |---|---|---|---|
-| `schedule` (평일 16:37) | O | O | O |
-| `workflow_dispatch` (수동) | 입력값 `skip_kis`에 따라 (기본 건너뜀) | O | O |
+| `workflow_dispatch` | 입력값 `skip_kis`에 따라 (Worker 는 전체 수집으로 부른다) | O | O |
 | `push` (코드 올릴 때) | X | X (`DRY_RUN`) | X |
 
 `push`는 문서만 바뀌었으면 아예 돌지 않는다(`paths-ignore`: `**.md`,
