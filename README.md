@@ -33,9 +33,9 @@
 | **대시보드** | CSV → `docs/data.json` → 캔들차트 웹페이지 | [`build_dashboard.py`](build_dashboard.py), [`docs/`](docs/) |
 | **알림** | 수집·업로드를 순서대로 돌리고 결과를 텔레그램으로 | [`notify_daily.py`](notify_daily.py) |
 
-평일 16:10 KST에 [GitHub Actions](.github/workflows/daily.yml)가 셋을 차례로 돌리고
-갱신된 CSV를 저장소에 다시 커밋한다. 대시보드는 그 커밋된 데이터를 그대로 읽는다 —
-바깥 서비스에 기대는 데가 없다.
+평일 16:37 KST에 Cloudflare Worker가 [GitHub Actions](.github/workflows/daily.yml)를 깨워
+셋을 차례로 돌리고 갱신된 CSV를 저장소에 다시 커밋한다. 대시보드는 그 커밋된 데이터를
+그대로 읽는다 — 바깥 서비스에 기대는 데가 없다.
 
 - **통합 뷰**: 전 지표를 섹터별로 한 화면에.
 - **개별 지표**: 크게 한 장. 금·WTI·비트코인은 MACD와 RSI가 아래 칸에 붙고,
@@ -229,9 +229,9 @@ GitHub 자체 `schedule` 은 쓰지 않는다. 이 저장소에서 예정 슬롯
 `data/`가 저장소에 커밋되므로 실행할 때마다 Actions 가 결과를 다시 커밋해
 푸시한다 — 이게 유일한 실행 지점이면 된다.
 
-로컬/VPS에서 손으로 또는 cron으로 병행 실행하면 `data/` 사본이 갈려 서로 덮어쓴다. 자동 실행은 Actions 한 곳으로 두고, 다른 환경은 필요할 때만 손으로
-돌린다. 자체 cron이 필요하면 5절 끝의 "매일 갱신에 붙이기" 참고 (Actions와 동시에
-쓰지 말 것).
+로컬/VPS 에서 손으로 또는 cron 으로 병행 실행하면 `data/` 사본이 갈려 서로
+덮어쓴다. 자동 실행은 Worker → Actions 한 경로로 두고, 다른 환경은 필요할 때만
+손으로 돌린다.
 
 ## 5. 웹 대시보드 (GitHub Pages)
 
@@ -391,7 +391,8 @@ ping 을 건너뛰므로 로컬 실행이 남의 체크를 때리지 않는다.
 
 `push`는 빌드가 깨지지 않았는지만 보는 것이라 바깥 상태를 하나도 건드리지 않는다.
 수동 실행이 KIS를 기본으로 건너뛰는 것도 같은 이유 — 손으로 여러 번 돌려보는 동안
-알림톡이 그 횟수만큼 오기 때문이다. 예약 실행만 전부 수집한다(하루 한 통은 정상 비용).
+알림톡이 그 횟수만큼 오기 때문이다. Worker 가 부르는 `workflow_dispatch`만 전체 수집이고,
+이게 하루 한 번뿐이라 알림톡도 하루 한 통이 정상 비용이다.
 
 설정(최초 1회):
 
@@ -413,3 +414,13 @@ Actions 실행 중 실패하면(토큰 만료, API 장애 등) `notify_daily.py`
 통째로 버려진다** — 다음 날 `--daily`는 최근 며칠만 보기 때문에 구멍이 남는다.
 푸시는 rebase로 세 번까지 다시 시도한다. 올리는 것이 데이터 파일뿐이라, 사이에 사람이
 push 했다고 실행이 실패할 이유가 없다.
+
+## 8. 트리거 (Cloudflare Worker)
+
+언제 도는지를 정하는 것은 `trigger/` 의 Worker 다. 평일 16:37 KST 에 깨어나
+`daily.yml` 을 dispatch 한다. 배포와 토큰 발급 절차는 `trigger/README.md` 에
+있다.
+
+실행이 멈추면 healthchecks.io 가 알린다 — `notify_daily.py` 가 매 실행 끝에
+ping 을 보내고, 평일 16:47 KST 까지 ping 이 없으면 알림이 온다. Worker 가
+죽든, 토큰이 만료되든, Actions 가 멈추든 침묵 자체가 신호가 된다.
