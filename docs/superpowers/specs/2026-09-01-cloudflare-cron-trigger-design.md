@@ -106,9 +106,11 @@ ${{ (github.event_name == 'push' || inputs.skip_kis) && '1' || '0' }}
 동작은 그대로다. push는 빌드 확인이라 KIS를 건너뛰고, dispatch는 입력값을
 따른다. Worker는 `skip_kis: "false"`를 명시해서 보내므로 전체 수집이 돈다.
 
-`workflow_dispatch` 입력값은 GitHub이 문자열로 전달한다. `"false"` 문자열은
-`inputs.skip_kis` 평가에서 거짓으로 다뤄지지만, 이 동작에 의존하는 것이
-불안하면 Worker 쪽에서 보내는 값과 워크플로 쪽 해석을 함께 확인한다.
+dispatch API는 입력값을 문자열로만 받는다. 워크플로가 `skip_kis`를
+`type: boolean`으로 선언해 두었으므로 GitHub이 `"false"` 문자열을 boolean
+`false`로 변환하고, `inputs.skip_kis`는 거짓으로 평가된다. 이 변환에 기대는
+셈이니 테스트 2단계에서 실행 로그의 `SKIP_KIS` 값이 `0`인지 눈으로 확인한다.
+`1`이면 KIS 계열이 통째로 비므로 조용히 넘어가면 안 되는 실패다.
 
 ### PAT는 최소 권한으로 좁힌다
 
