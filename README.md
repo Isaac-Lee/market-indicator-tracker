@@ -361,6 +361,10 @@ https://buly.kr/2JqqPBg
 | `SKIP_KIS` | KIS 계열을 건너뛴다. KIS는 토큰을 새로 받을 때마다 계정으로 알림톡을 보내는데, 러너는 매번 새 환경이라 실행 한 번이 알림 한 통이 된다. WTI는 야후로 대체 |
 | `DRY_RUN` | 텔레그램으로 보내지 않고 화면에만 찍는다 |
 
+`HEALTHCHECK_URL`은 값이 `1`인지가 아니라 주소 자체를 쓴다. 실행이 끝나면 이
+주소로 ping 을 보내고, 수집이 실패했으면 `/fail` 을 붙여 보낸다. 비어 있으면
+ping 을 건너뛰므로 로컬 실행이 남의 체크를 때리지 않는다.
+
 ## 7. GitHub Actions (서버 없이 매일 자동 실행)
 
 `.github/workflows/daily.yml`이 평일 16:37 KST(07:37 UTC)에
