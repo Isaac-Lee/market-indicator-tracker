@@ -400,7 +400,12 @@ https://buly.kr/2JqqPBg
    - `ECOS_API_KEY` — 한국은행 ECOS
    - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
    - `HEALTHCHECK_URL` — healthchecks.io ping 주소. 없어도 실행은 그대로
-     되지만, 실행이 조용히 멈췄을 때 알아챌 방법이 없어진다.
+     되지만, 실행이 조용히 멈췄을 때 알아챌 방법이 없어진다. healthchecks.io
+     에서 check 를 만들고 **Change Schedule** 에서 **Cron** 탭을 골라
+     `10 7 * * 1-5` / Time zone `UTC` / Grace Time `10 minutes` 로 둔다.
+     기본값인 Simple(1 day)로 두면 주말에도 하루가 지나면 알림이 온다.
+     여기 cron 은 0 이 일요일인 표준 방식이라 `1-5` 가 월~금이 맞다 —
+     같은 문자열이 Cloudflare 에서는 일~목이라는 점만 헷갈리지 말 것.
 2. **Settings → Pages → Build and deployment → Source**를 `Deploy from a branch`,
    브랜치는 `main` / 폴더는 `/docs`로 지정. 몇 분 뒤
    `https://<계정>.github.io/<저장소>/`에서 대시보드가 뜬다.

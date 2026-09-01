@@ -4,6 +4,12 @@
 Worker. 하는 일은 GitHub dispatch API 를 한 번 호출하는 것뿐이고, 수집과
 커밋과 알림은 전부 Actions 안에서 일어난다.
 
+시각은 `wrangler.toml` 의 `crons` 하나로 정해진다. 요일은 숫자로 쓰지
+말 것 — Cloudflare 의 cron 은 1 이 일요일이라, GitHub 에서 월~금을 뜻하던
+`1-5` 가 여기서는 일~목이 되어 금요일 장 마감을 통째로 놓친다. 배포한
+뒤 대시보드의 Cron triggers 가 "Monday through Friday" 로 읽히는지
+확인하면 이 실수를 바로 잡을 수 있다.
+
 ## 왜 GitHub 의 schedule 을 안 쓰나
 
 2026-08-28 에 cron 을 넣은 뒤 예정 슬롯이 여섯 번 지나갔는데 한 번도
@@ -30,7 +36,14 @@ Cloudflare 무료 플랜으로 충분하고 카드 등록도 필요 없다.
 
 1. Cloudflare 계정을 만든다 — https://dash.cloudflare.com/sign-up
 
-2. 의존성을 받고 로그인한다. 브라우저가 열리고 권한을 묻는다.
+   가입 메일의 인증 링크를 반드시 누른다. 인증 전에는 배포가
+   `You need to verify your email address to use Workers [code: 10034]`
+   로 막힌다.
+
+2. 의존성을 받고 로그인한다. 브라우저가 열리고 권한을 묻는다. 목록에
+   체크가 빠진 채로 승인하면 `account:read` 같은 권한이 없어서 나중에
+   `Failed to automatically retrieve account IDs` 가 난다. 그때는
+   `npx wrangler login` 을 다시 돌려 전부 체크하고 승인하면 된다.
 
    ```bash
    cd trigger
@@ -62,25 +75,14 @@ Cloudflare 무료 플랜으로 충분하고 카드 등록도 필요 없다.
 
 ## 손으로 한 번 깨워보기
 
-cron 을 기다리지 않고 `scheduled` 핸들러를 직접 부른다.
+cron 을 기다리지 않고 `scheduled` 핸들러를 직접 부른다. Cloudflare
+대시보드에는 cron 을 손으로 돌리는 버튼이 없다.
 
-`wrangler dev`는 로컬에서 도는 것이라 `wrangler secret put`으로 배포한
-비밀값(`GITHUB_TOKEN`)을 못 본다 — 그건 배포된 Worker 에만 있다. 로컬
-실행은 대신 `trigger/.dev.vars` 파일에서 변수를 읽으므로, 이 파일을 먼저
-만들어야 한다:
-
-```bash
-echo 'GITHUB_TOKEN=<토큰>' > trigger/.dev.vars
-```
-
-이 파일은 토큰을 평문으로 담으므로 커밋하면 안 된다 — `.gitignore`에
-이미 올라가 있으니 실수로 올라갈 일은 없지만, 다른 이름으로 복사하거나
-옮기지 말 것. 이 절차를 마쳤으면 지운다.
-
-한 터미널에서:
+한 터미널에서 — `--remote` 는 Cloudflare 위에서 돌아 배포된
+`GITHUB_TOKEN` 을 그대로 쓴다:
 
 ```bash
-cd trigger && npx wrangler dev --test-scheduled
+cd trigger && npx wrangler dev --remote --test-scheduled
 ```
 
 다른 터미널에서:
@@ -90,9 +92,11 @@ curl "http://localhost:8787/__scheduled?cron=10+7+*+*+MON-FRI"
 ```
 
 첫 터미널 로그에 `dispatch 성공` 이 찍히고, 곧 Actions 에 실행이 생긴다.
-여기서 401 이 나면 `.dev.vars`가 없거나 토큰 값이 비어 있다는 뜻이지,
-Worker 에 배포된 토큰이 잘못됐다는 뜻이 아니다 — 재발급하기 전에
-`.dev.vars`부터 확인할 것.
+여기서 401 이면 배포된 토큰이 만료됐거나 권한이 모자란 것이다.
+
+`--remote` 없이 돌리면 로컬에서 실행되어 배포된 비밀값을 못 보므로,
+`trigger/.dev.vars` 에 `GITHUB_TOKEN=<토큰>` 을 따로 적어야 한다. 그
+파일은 토큰을 평문으로 담으니 쓰고 나면 지운다.
 
 ## 토큰이 만료되면
 
