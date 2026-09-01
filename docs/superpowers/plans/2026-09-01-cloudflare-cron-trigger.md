@@ -464,7 +464,7 @@ curl "http://localhost:8787/__scheduled?cron=37+7+*+*+1-5"
 
 dispatch 가 401 로 실패하고 Worker 로그에 남지만, 아무도 로그를 보지
 않는다. 그래서 실행이 멈춘 것은 healthchecks.io 알림으로 알게 된다 —
-`notify_daily.py` 가 매 실행 끝에 ping 을 보내고, 평일 16:40 KST 까지
+`notify_daily.py` 가 매 실행 끝에 ping 을 보내고, 평일 16:47 KST 까지
 ping 이 없으면 저쪽에서 알린다.
 
 알림을 받으면 먼저 `npx wrangler tail` 로 Worker 로그를 본다.
