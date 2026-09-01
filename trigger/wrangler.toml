@@ -2,8 +2,9 @@ name = "market-indicator-trigger"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
 
-# 07:37 UTC = 16:37 KST. Cloudflare 의 cron 도 UTC 기준이고, 요일 1-5 는
-# 월~금이다. 한국 공휴일에는 장이 열리지 않는데도 깨우지만, 그때는 수집이
+# 07:10 UTC = 16:10 KST. Cloudflare 의 cron 도 UTC 기준이다. 요일을 숫자로
+# 쓰면 1 이 일요일이라 1-5 가 일~목이 되어버린다 — 금요일을 놓치므로 이름으로
+# 적는다. 한국 공휴일에는 장이 열리지 않는데도 깨우지만, 그때는 수집이
 # 빈 결과를 받을 뿐이라 그대로 둔다.
 [triggers]
-crons = ["37 7 * * 1-5"]
+crons = ["10 7 * * MON-FRI"]

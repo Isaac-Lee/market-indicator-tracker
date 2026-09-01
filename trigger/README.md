@@ -1,6 +1,6 @@
 # 예약 실행 트리거
 
-평일 16:37 KST(07:37 UTC)에 `daily-collect` 워크플로를 깨우는 Cloudflare
+평일 16:10 KST(07:10 UTC)에 `daily-collect` 워크플로를 깨우는 Cloudflare
 Worker. 하는 일은 GitHub dispatch API 를 한 번 호출하는 것뿐이고, 수집과
 커밋과 알림은 전부 Actions 안에서 일어난다.
 
@@ -86,7 +86,7 @@ cd trigger && npx wrangler dev --test-scheduled
 다른 터미널에서:
 
 ```bash
-curl "http://localhost:8787/__scheduled?cron=37+7+*+*+1-5"
+curl "http://localhost:8787/__scheduled?cron=10+7+*+*+MON-FRI"
 ```
 
 첫 터미널 로그에 `dispatch 성공` 이 찍히고, 곧 Actions 에 실행이 생긴다.
@@ -98,7 +98,7 @@ Worker 에 배포된 토큰이 잘못됐다는 뜻이 아니다 — 재발급하
 
 dispatch 가 401 로 실패하고 Worker 로그에 남지만, 아무도 로그를 보지
 않는다. 그래서 실행이 멈춘 것은 healthchecks.io 알림으로 알게 된다 —
-`daily.yml`의 마지막 단계가 매 실행 끝에 ping 을 보내고, 평일 16:47 KST 까지
+`daily.yml`의 마지막 단계가 매 실행 끝에 ping 을 보내고, 평일 16:20 KST 까지
 ping 이 없으면 저쪽에서 알린다.
 
 알림을 받으면 먼저 `npx wrangler tail` 로 Worker 로그를 본다.

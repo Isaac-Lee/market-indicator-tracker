@@ -33,7 +33,7 @@
 | **대시보드** | CSV → `docs/data.json` → 캔들차트 웹페이지 | [`build_dashboard.py`](build_dashboard.py), [`docs/`](docs/) |
 | **알림** | 수집·업로드를 순서대로 돌리고 결과를 텔레그램으로 | [`notify_daily.py`](notify_daily.py) |
 
-평일 16:37 KST에 Cloudflare Worker가 [GitHub Actions](.github/workflows/daily.yml)를 깨워
+평일 16:10 KST에 Cloudflare Worker가 [GitHub Actions](.github/workflows/daily.yml)를 깨워
 셋을 차례로 돌리고 갱신된 CSV를 저장소에 다시 커밋한다. 대시보드는 그 커밋된 데이터를
 그대로 읽는다 — 바깥 서비스에 기대는 데가 없다.
 
@@ -217,7 +217,7 @@ INVESTOR_MAP = {
 
 ## 4. 자동 실행
 
-**평일 16:37(KST)에 Cloudflare Worker 가 GitHub Actions 를 깨운다**
+**평일 16:10(KST)에 Cloudflare Worker 가 GitHub Actions 를 깨운다**
 (`trigger/`, `.github/workflows/daily.yml`). 수집·커밋·텔레그램·Pages 배포는
 전부 Actions 안에서 돌고, Worker 는 시각이 되면 실행을 요청하는 일만 한다.
 
@@ -423,10 +423,10 @@ push 했다고 실행이 실패할 이유가 없다.
 
 ## 8. 트리거 (Cloudflare Worker)
 
-언제 도는지를 정하는 것은 `trigger/` 의 Worker 다. 평일 16:37 KST 에 깨어나
+언제 도는지를 정하는 것은 `trigger/` 의 Worker 다. 평일 16:10 KST 에 깨어나
 `daily.yml` 을 dispatch 한다. 배포와 토큰 발급 절차는 `trigger/README.md` 에
 있다.
 
 실행이 멈추면 healthchecks.io 가 알린다 — `daily.yml`의 마지막 단계가 매
-실행 끝에 ping 을 보내고, 평일 16:47 KST 까지 ping 이 없으면 알림이 온다.
+실행 끝에 ping 을 보내고, 평일 16:20 KST 까지 ping 이 없으면 알림이 온다.
 Worker 가 죽든, 토큰이 만료되든, Actions 가 멈추든 침묵 자체가 신호가 된다.
