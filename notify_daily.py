@@ -120,32 +120,6 @@ def send_telegram(text):
     )
 
 
-def healthcheck_target(url, ok):
-    """성공이면 주소 그대로, 실패면 /fail 을 붙인 주소."""
-    base = url.rstrip("/")
-    return base if ok else base + "/fail"
-
-
-def ping_healthcheck(ok):
-    """실행이 끝났음을 healthchecks.io 에 알린다.
-
-    정해진 시각까지 ping 이 없으면 저쪽에서 알림을 보낸다. 트리거가 무엇이든,
-    어느 층에서 끊기든 침묵 자체가 신호가 되는 구조라, 이 줄이 이번 사고
-    ("사흘 동안 멈춘 줄 몰랐다")를 되풀이하지 않게 하는 유일한 장치다.
-
-    ping 이 실패해도 수집 결과를 뒤집지 않는다 — 지표는 이미 받아서 파일에
-    썼고, 알림을 못 보낸 것이 수집 실패는 아니다.
-    """
-    url = read_key(r"Healthcheck\s*URL", "HEALTHCHECK_URL")
-    if not url:
-        print("[건너뜀] HEALTHCHECK_URL 없음", file=sys.stderr)
-        return
-    try:
-        requests.post(healthcheck_target(url, ok), timeout=10)
-    except requests.RequestException as exc:
-        print(f"[주의] healthcheck ping 실패: {exc}", file=sys.stderr)
-
-
 def last_line(output):
     lines = [l for l in output.splitlines() if l.strip()]
     return lines[-1] if lines else "(출력 없음)"
@@ -163,7 +137,6 @@ def main():
         text = f"[지표추적자] 수집 실패 (rc={rc})\n{last_line(out)}"
     print(text)
     send_telegram(text)
-    ping_healthcheck(rc == 0)
     sys.exit(rc)
 
 

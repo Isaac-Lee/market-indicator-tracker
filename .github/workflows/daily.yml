@@ -74,3 +74,24 @@ jobs:
             git pull --rebase --autostash origin main
           done
           git push
+
+      # 이 단계가 맨 마지막인 이유: healthchecks 의 성공 ping 은 "그날 데이터가
+      # 실제로 커밋되고 배포됐다"를 뜻해야 한다. 수집만 끝났다는 뜻이면 안 된다
+      # — 그러면 커밋/푸시가 깨져도 초록불이 뜨고, 대시보드는 어제 데이터에
+      # 멈춘 채로 아무도 눈치채지 못한다.
+      - name: healthcheck ping
+        if: always() && github.event_name != 'push'
+        run: |
+          if [ -z "$HEALTHCHECK_URL" ]; then
+            echo "[건너뜀] HEALTHCHECK_URL 없음"
+            exit 0
+          fi
+          base="${HEALTHCHECK_URL%/}"
+          if [ "${{ job.status }}" = "success" ]; then
+            target="$base"
+          else
+            target="$base/fail"
+          fi
+          curl -fsS -m 10 -X POST "$target" || echo "[주의] healthcheck ping 실패"
+        env:
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
