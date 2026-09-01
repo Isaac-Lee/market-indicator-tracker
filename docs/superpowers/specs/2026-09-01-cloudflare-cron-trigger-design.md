@@ -47,7 +47,7 @@ GitHub Actions  (workflow_dispatch)
    ▼
 healthchecks.io
       성공 시 ping, 실패 시 /fail ping
-      평일 16:40 KST까지 ping 없으면 알림
+      평일 16:47 KST까지 ping 없으면 알림 (grace 10분)
 ```
 
 ### 왜 n8n이 아닌가
@@ -126,7 +126,7 @@ classic token은 쓰지 않는다. 계정 전체 저장소에 권한이 열린�
 
 `notify_daily.py`의 `main()`은 이미 `collect.py`의 종료 코드를 들고 있다.
 성공이면 기본 ping, 실패면 `/fail` ping을 보낸다. 실패를 즉시 알리는 쪽이
-"16:40까지 조용하네"를 기다리는 것보다 빠르다.
+"16:47까지 조용하네"를 기다리는 것보다 빠르다.
 
 ping 실패가 수집 결과를 뒤집으면 안 된다. ping은 예외를 삼키고, 종료 코드는
 `collect.py`의 것을 그대로 쓴다.
@@ -158,7 +158,7 @@ Worker cron도 `1-5`로 평일만 돈다. 한국 공휴일에는 장이 열리�
 2. `npm i -D wrangler` 후 `npx wrangler login`
 3. GitHub fine-grained PAT 발급 (위 권한대로)
 4. `npx wrangler secret put GITHUB_TOKEN`
-5. healthchecks.io 가입, check 생성 (평일 16:40 KST 기한), ping URL 확보
+5. healthchecks.io 가입, check 생성 (cron `37 7 * * 1-5` UTC, grace 10분), ping URL 확보
 6. GitHub 저장소 secret에 `HEALTHCHECK_URL` 등록
 
 ## 미해결로 남기는 것
