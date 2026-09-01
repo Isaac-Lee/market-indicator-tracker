@@ -1,0 +1,7 @@
+{
+  "name": "market-indicator-trigger",
+  "private": true,
+  "devDependencies": {
+    "wrangler": "^4.127.1"
+  }
+}

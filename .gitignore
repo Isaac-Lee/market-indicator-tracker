@@ -4,3 +4,4 @@ update.log
 __pycache__/
 google-service-account.json
 API-KEY.txt
+trigger/node_modules/
