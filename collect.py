@@ -40,6 +40,7 @@ SPEC = {
     "investor_flow": (730, "W"),
     "sp500": (183, "D"),
     "nasdaq": (183, "D"),
+    "nikkei225": (183, "D"),
     "dow": (183, "D"),
     "russell2000": (183, "D"),
     "dxy": (183, "D"),
@@ -179,6 +180,7 @@ YAHOO_SERIES = {
     "wti": "CL=F",           # 근월물 연결선물
     "sp500": "^GSPC",
     "nasdaq": "^IXIC",
+    "nikkei225": "^N225",
     "dow": "^DJI",
     "russell2000": "^RUT",
     "dxy": "DX-Y.NYB",       # ICE 달러지수
@@ -426,6 +428,10 @@ def summary_line(total, stale):
     return f"{total}계열 갱신 · stale {len(stale)} ({detail})"
 
 
+# 새 계열의 첫 수집 범위. 야후 엔드포인트가 2년까지만 주고, MA120에는 그걸로 충분하다.
+NEW_SERIES_DAYS = 730
+
+
 def collect(days_back=None, skip_kis=False):
     today = date.today()
     clients = {}
@@ -437,8 +443,15 @@ def collect(days_back=None, skip_kis=False):
         return clients[kind]
 
     def since(name):
-        """SPEC 기간만큼 거슬러 올라간 시작일 (--daily 면 최근 며칠만)."""
+        """SPEC 기간만큼 거슬러 올라간 시작일 (--daily 면 최근 며칠만).
+
+        CSV가 아직 없는 새 계열은 --daily 여도 처음 한 번은 NEW_SERIES_DAYS 를 받는다.
+        최근 10일만 받아 두면 대시보드 이동평균이 몇 달 동안 비어 있고, 계열을 추가할
+        때마다 --backfill 을 따로 돌려야 하는 것을 잊기 쉽다.
+        """
         if days_back:
+            if not (DATA / f"{name}.csv").exists():
+                return today - timedelta(days=max(days_back, NEW_SERIES_DAYS))
             return today - timedelta(days=days_back)
         return today - timedelta(days=SPEC[name][0])
 
@@ -462,7 +475,7 @@ def collect(days_back=None, skip_kis=False):
         jobs["wti"] = lambda: fetch_yahoo(YAHOO_SERIES["wti"], since("wti"), today)
         print("[건너뜀] KIS 계열 (--skip-kis) — WTI는 야후로 대체")
 
-    for name in ("sp500", "nasdaq", "dow", "russell2000", "dxy", "btc", "gold", "oracle", "nvidia"):
+    for name in ("sp500", "nasdaq", "nikkei225", "dow", "russell2000", "dxy", "btc", "gold", "oracle", "nvidia"):
         jobs[name] = (lambda n=name: fetch_yahoo(YAHOO_SERIES[n], since(n), today))
 
     for name in FRED_SERIES:

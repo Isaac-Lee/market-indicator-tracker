@@ -25,6 +25,7 @@ const SECTORS = [
     { key: "kospi", icon: "🇰🇷",         label: "코스피",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 120 },
     { key: "kosdaq", icon: "🇰🇷",        label: "코스닥",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 120 },
     { key: "nasdaq", icon: "🇺🇸",        label: "나스닥",       type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 100 },
+    { key: "nikkei225", icon: "🇯🇵",     label: "닛케이225",    type: "candle", unit: "pt",   digits: 2, ma: [5, 20, 60, 120], view: 100 },
   ]},
   { title: "종목", charts: [
     { key: "samsung_elec", icon: "📱",  label: "삼성전자",     type: "candle", unit: "원",   digits: 0, ma: [20, 60, 120], view: 110 },

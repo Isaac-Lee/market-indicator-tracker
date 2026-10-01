@@ -33,6 +33,7 @@ BRIEFING_GROUPS = [
         ("🇰🇷 KOSPI", "kospi", "close", 2),
         ("🇰🇷 KOSDAQ", "kosdaq", "close", 2),
         ("🇺🇸 나스닥", "nasdaq", "close", 2),
+        ("🇯🇵 닛케이", "nikkei225", "close", 2),
     ]),
     ("종목", [
         ("📱 삼성전자", "samsung_elec", "close", 0),

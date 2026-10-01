@@ -69,11 +69,12 @@ def test_wti_front_month():
 def test_yahoo_series_covers_every_yahoo_backed_spec():
     """SPEC에 있는 야후 계열은 전부 YAHOO_SERIES에 심볼이 있어야 한다."""
     from collect import SPEC, YAHOO_SERIES
-    for name in ("wti", "sp500", "nasdaq", "dow", "russell2000", "dxy", "btc", "gold"):
+    for name in ("wti", "sp500", "nasdaq", "nikkei225", "dow", "russell2000", "dxy", "btc", "gold"):
         assert name in SPEC, f"SPEC에 {name} 없음"
         assert name in YAHOO_SERIES, f"YAHOO_SERIES에 {name} 없음"
     assert YAHOO_SERIES["sp500"] == "^GSPC"
     assert YAHOO_SERIES["wti"] == "CL=F"
+    assert YAHOO_SERIES["nikkei225"] == "^N225"
 
 
 def test_fred_series_and_spec_are_daily():

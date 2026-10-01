@@ -29,7 +29,7 @@
 
 | | 하는 일 | 어디서 |
 |---|---|---|
-| **수집** | KIS·ECOS·FRED·야후에서 21개 계열을 받아 `data/*.csv`에 누적 | [`collect.py`](collect.py) |
+| **수집** | KIS·ECOS·FRED·야후에서 22개 계열을 받아 `data/*.csv`에 누적 | [`collect.py`](collect.py) |
 | **대시보드** | CSV → `docs/data.json` → 캔들차트 웹페이지 | [`build_dashboard.py`](build_dashboard.py), [`docs/`](docs/) |
 | **알림** | 수집·업로드를 순서대로 돌리고 결과를 텔레그램으로 | [`notify_daily.py`](notify_daily.py) |
 
@@ -95,7 +95,7 @@ python collect.py --snapshot 2026-08-21   # 특정 날짜
 python build_dashboard.py && python -m http.server 8420 --directory docs
 ```
 
-`--daily`/`--init`은 마지막 줄에 요약을 찍는다: `21계열 갱신 · stale 0`.
+`--daily`/`--init`은 마지막 줄에 요약을 찍는다: `22계열 갱신 · stale 0`.
 계열의 마지막 데이터가 5일(달력) 넘게 낡으면 `stale`로 이름이 올라간다.
 휴장은 임계 안에 들어오므로 조용하고, 소스가 깨지면 드러난다.
 **전 계열이 낡았을 때만 종료 코드가 non-zero다** — 계열 하나 때문에 매일
@@ -126,6 +126,7 @@ python build_dashboard.py && python -m http.server 8420 --directory docs
 | **`investor_flow`** | 주체별 순매수(외국인/기관/개인/연기금/투신) | 시장별 투자자매매동향(일별) `FHPTJ04040000` | 주(금) | 2년 |
 | `sp500` | S&P 500 OHLC | 야후 `^GSPC` | 일 | 6개월 |
 | **`nasdaq`** | 나스닥 OHLC | 야후 `^IXIC` | 일 | 6개월 |
+| **`nikkei225`** | 닛케이225 OHLC | 야후 `^N225` | 일 | 6개월 |
 | `dow` | 다우 OHLC | 야후 `^DJI` | 일 | 6개월 |
 | `russell2000` | 러셀 2000 OHLC | 야후 `^RUT` | 일 | 6개월 |
 | `dxy` | 달러지수 OHLC | 야후 `DX-Y.NYB` | 일 | 6개월 |
@@ -271,7 +272,7 @@ python build_dashboard.py    # data/*.csv -> docs/data.json
   더 있으면 `‹` `›`와 음영이 뜬다(화살표는 눌러서 미는 버튼이기도 하다). 끝에 닿으면
   그쪽 화살표만 사라진다 — 계속 떠 있으면 더 있는 줄 알고 헛되이 민다.
 - 좁은 화면: 오른쪽 **햄버거**로 접고, 왼쪽에 통합 버튼, 가운데에 "무엇을 보는 중"인지
-  적어 둔다. 23개를 어떻게 늘어놓아도 화면 위쪽을 통째로 먹거나 옆으로 숨기 때문이다.
+  적어 둔다. 24개를 어떻게 늘어놓아도 화면 위쪽을 통째로 먹거나 옆으로 숨기 때문이다.
 - 차트 카드는 폭에 따라 한 행에 4장 → 2장 → 1장으로 접힌다(1100px, 760px).
   휴대폰에서는 한 열에 한 장씩 — 두 장만 나란히 놓아도 캔들이 읽히지 않는다.
 
@@ -326,6 +327,9 @@ CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 python collect.py --backfill 1825    # 전 계열 5년치 다시 받아 CSV에 합침
 python build_dashboard.py
 ```
+
+새 계열을 추가했을 때는 따로 돌릴 필요가 없다. `--daily`가 CSV가 아직 없는 계열을 만나면
+그 계열만 처음 한 번 2년치(`NEW_SERIES_DAYS`)를 받는다.
 
 야후 계열은 엔드포인트가 2년까지만 주므로 `--backfill`을 더 크게 잡아도 2년에서
 멈춘다. MA120에는 충분하다.
